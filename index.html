@@ -387,7 +387,7 @@ function pickSite() {
 function openSite(code) {
   theme('t-hub');
   $('app').innerHTML = '<div class="loading"><div class="spinner" style="margin:0"></div>กำลังเปิด ' + esc(code) + '…</div>';
-  run('gSite', code).then(c => { CFG = c; SITE = c.site; store.set('site', code); if (QR_POST && code === QR_SITE) { const p = QR_POST; QR_POST = ''; scanPage(p); return; } const go = { checkin: formCheckin, routine: formRoutine, bl: formBL, incident: formIncident, parcel: formParcel, voice: formVoice, car: SITE.cars ? formCar : null, phone: SITE.phone ? formPhone : null, gate: SITE.gate ? formGate : null }[QR_GO]; QR_GO = ''; if (go) go(); else home(); }).catch(e => { store.set('site', ''); fatal(errText(e)); });
+  run('gSite', code).then(c => { CFG = c; SITE = c.site; applyOpts(c.opts); store.set('site', code); if (QR_POST && code === QR_SITE) { const p = QR_POST; QR_POST = ''; scanPage(p); return; } const go = { checkin: formCheckin, routine: formRoutine, bl: formBL, incident: formIncident, parcel: formParcel, voice: formVoice, car: SITE.cars ? formCar : null, phone: SITE.phone ? formPhone : null, gate: SITE.gate ? formGate : null }[QR_GO]; QR_GO = ''; if (go) go(); else home(); }).catch(e => { store.set('site', ''); fatal(errText(e)); });
 }
 
 function home() {
@@ -609,8 +609,8 @@ async function sendIncident() {
 
 // ═══════════════ Routine (หน้าตา Routine Report เดิม) ═══════════════
 const RT_TYPES = [['patrol', '🚶', 'Patrol Log'], ['toilet', '🚻', 'ตรวจห้องน้ำ'], ['firedoor', '🚪', 'ประตูหนีไฟ'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];
-const RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร'], ['ประตูหนีไฟ', 'ประตูหนีไฟ']];
-const RT_TOILETS = [['IB ชาย', '🚹'], ['IB หญิง', '🚺'], ['OB ชาย', '🚹'], ['OB หญิง', '🚺']];
+let RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร'], ['ประตูหนีไฟ', 'ประตูหนีไฟ']];
+let RT_TOILETS = [['IB ชาย', '🚹'], ['IB หญิง', '🚺'], ['OB ชาย', '🚹'], ['OB หญิง', '🚺']];
 let RT = null;
 function formRoutine() {
   theme('t-or');
@@ -662,7 +662,7 @@ async function sendRoutine() {
   const d = { site: SITE.code, date: $('rt_d').value, time: $('rt_t').value, type: RT.type, status: RT.status, detail: $('rt_det').value, reporter: $('rt_rep').value.trim() };
   if (!d.type) return showErr('⚠️ กรุณาเลือกประเภทรายงาน');
   if (d.type === 'patrol') { if (!RT.points.length) return showErr('⚠️ กรุณาเลือกจุดที่ตรวจ'); d.points = RT.points; }
-  if (d.type === 'toilet') { if (RT_TOILETS.some(t => !RT.toilets[t[0]])) return showErr('⚠️ กรุณาตรวจห้องน้ำให้ครบ 4 จุด'); d.toilets = RT.toilets; }
+  if (d.type === 'toilet') { if (RT_TOILETS.some(t => !RT.toilets[t[0]])) return showErr('⚠️ กรุณาตรวจห้องน้ำให้ครบ ' + RT_TOILETS.length + ' จุด'); d.toilets = RT.toilets; }
   if (d.type === 'firedoor') { if (!CFG.doors.length) return showErr('⚠️ พื้นที่นี้ยังไม่ได้ตั้งจำนวนประตูหนีไฟ'); if (CFG.doors.length > 1 && !RT.doorGroup) return showErr('⚠️ กรุณาเลือกคลังที่ตรวจประตูหนีไฟ'); d.doorGroup = RT.doorGroup; d.doors = RT.doors; }
   if (d.type === 'key') { if (!RT.keyType) return showErr('⚠️ กรุณาเลือกรับหรือส่งกุญแจ'); d.keyType = RT.keyType; d.keyPerson = $('rt_kp').value.trim(); d.keyTime = $('rt_kt').value; if (!d.keyPerson) return showErr('⚠️ กรุณาระบุชื่อผู้เปิด/ปิดคลัง'); }
   if (d.type === 'other') { d.subject = $('rt_sub').value.trim(); if (!d.subject) return showErr('⚠️ กรุณาระบุเรื่อง'); }
@@ -679,8 +679,18 @@ async function sendRoutine() {
 }
 
 // ═══════════════ พบพัสดุ (หน้าตา Parcel Found Report เดิม · ธีมส้มชุดเดียวกับฟอร์มอื่น) ═══════════════
-const PF_COND = [['ดี', '✅'], ['เสียหาย', '⚠️'], ['แกะแล้ว', '📭'], ['สูญหายบางส่วน', '❓']];
-const PF_STEPS = ['แจ้ง Sec Ops', 'ส่งคืนหัวหน้างาน'];
+let PF_COND = [['ดี', '✅'], ['เสียหาย', '⚠️'], ['แกะแล้ว', '📭'], ['สูญหายบางส่วน', '❓']];
+// ตัวเลือกที่ตั้งได้ในตั้งค่ากลาง (ส่งมากับ gSite) · ไอคอนเดิมใช้ต่อ ค่าใหม่ใช้ไอคอนกลาง
+function applyOpts(o) {
+  if (!o) return;
+  const keep = (L, cur, d) => (L && L.length) ? L.map(v => [v, (cur.find(x => x[0] === v) || [v, typeof d === 'function' ? d(v) : d])[1]]) : cur;
+  RT_POINTS = keep(o.patrol, RT_POINTS, v => v);
+  RT_TOILETS = keep(o.toilets, RT_TOILETS, v => /หญิง/.test(v) ? '🚺' : (/ชาย/.test(v) ? '🚹' : '🚻'));
+  PF_COND = keep(o.parcelCond, PF_COND, '📦');
+  if (o.parcelSteps && o.parcelSteps.length) PF_STEPS = o.parcelSteps.slice();
+  if (o.voiceUrg && o.voiceUrg.length) VO_URG = o.voiceUrg.slice();
+}
+let PF_STEPS = ['แจ้ง Sec Ops', 'ส่งคืนหัวหน้างาน'];
 let PF = null;
 function formParcel() {
   theme('t-or');
@@ -925,11 +935,11 @@ function sendScan(post) {
 }
 
 // ═══════════════ แจ้งปัญหา รปภ. (หน้าตาเดิม · ลับ) ═══════════════
-const VO_URG = ['ปกติ', 'ด่วน', 'ด่วนมาก'];
+let VO_URG = ['ปกติ', 'ด่วน', 'ด่วนมาก'];
 let VO = null;
 function formVoice() {
   theme('t-vo');
-  VO = { cats: [], urg: 'ปกติ', photos: [], clips: [] };
+  VO = { cats: [], urg: VO_URG[0], photos: [], clips: [] };
   $('app').innerHTML = '<div class="vo-head"><div class="vo-ic">' + ico('i-voice') + '</div><div><div class="vt">แจ้งปัญหา รปภ.</div><div class="vs">ส่งถึงผู้รับเรื่องเท่านั้น · เป็นความลับ</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
     '<div class="vo-main"><div class="vo-note">🔒 เรื่องที่แจ้ง<b>ส่งถึงผู้รับเรื่อง (Sec Ops) เท่านั้น</b> หัวหน้า รปภ. และเพื่อนในทีมมองไม่เห็น ชื่อของคุณใช้สำหรับติดต่อกลับเท่านั้น</div>' +
     '<div class="vo-card"><div class="vo-l">ผู้แจ้ง</div><div class="field"><label for="vo_n">ชื่อ-นามสกุล <i>*</i></label><input id="vo_n" value="' + esc(store.get('name')) + '" placeholder="เช่น สมชาย ใจดี"></div>' +
@@ -938,7 +948,7 @@ function formVoice() {
     '<label class="vo-chk"><input type="checkbox" id="vo_c" checked> ให้ผู้รับเรื่องติดต่อกลับได้</label></div>' +
     '<div class="vo-card"><div class="vo-l">เรื่องที่อยากแจ้ง <i>*</i> <span class="opt">เลือกได้มากกว่า 1</span></div><div class="pchips">' + CFG.voiceCats.map(c => '<button type="button" class="pchip" data-v="' + esc(c) + '" onclick="togArr(VO.cats,this)">' + esc(c) + '</button>').join('') + '</div>' +
     '<div class="field"><label for="vo_w">เกี่ยวข้องกับใคร / จุดไหน <span class="opt">ไม่บังคับ</span></label><input id="vo_w" placeholder="เช่น หัวหน้ากะดึก, จุด Body Check"></div>' +
-    '<div class="field"><label>ความเร่งด่วน</label></div><div class="vo-urg" id="vo_u">' + VO_URG.map(u => '<button type="button" class="' + (u === 'ปกติ' ? 'on' : '') + '" data-v="' + u + '" onclick="voUrg(this)">' + u + '</button>').join('') + '</div>' +
+    '<div class="field"><label>ความเร่งด่วน</label></div><div class="vo-urg" id="vo_u">' + VO_URG.map(u => '<button type="button" class="' + (u === VO_URG[0] ? 'on' : '') + '" data-v="' + u + '" onclick="voUrg(this)">' + u + '</button>').join('') + '</div>' +
     '<div class="field"><label for="vo_d">เล่ารายละเอียด <i>*</i></label><textarea id="vo_d" placeholder="เกิดอะไรขึ้น เมื่อไหร่ ที่ไหน มีใครเห็นบ้าง"></textarea></div></div>' +
     '<div class="vo-card"><div class="vo-l">หลักฐาน <span class="opt">ไม่บังคับ · รูป 3 · คลิป 3 (ไม่เกิน 20 MB)</span></div><div class="photos" id="vo_ph"></div>' +
     '<div class="row2"><button type="button" class="add-btn" style="margin:0" onclick="addPhoto(\'vo\')">＋ รูป</button><button type="button" class="add-btn" style="margin:0" onclick="$(\'voClip\').click()">＋ คลิปวิดีโอ</button></div></div>' +
