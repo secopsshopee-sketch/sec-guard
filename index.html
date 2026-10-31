@@ -3,7 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<!-- ▼▼ ใส่ลิงก์ /exec ของแอป รปภ. (Apps Script) ใน content ด้านล่าง ▼▼ -->
+<!-- ลิงก์ /exec ของแอป รปภ. (Apps Script) -->
 <meta name="sec-api" content="https://script.google.com/macros/s/AKfycbzKuzWXIaV5tzmqRxCkOxXr9hinWdaDN1b7WolAJtk4kQ_nnh8R42jPS7DMcUOLGn7P/exec">
 <title>รปภ. · Shopee Security</title>
 <link rel="icon" href="data:,">
@@ -467,7 +467,7 @@ function loadTaken() {
     $('ci_post').innerHTML = postOptions(r.taken, me);
     if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur;
     const n = Object.keys(r.taken).length;
-    $('ci_ph').textContent = r.shift ? 'กะ ' + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ';
+    $('ci_ph').textContent = r.shift ? (/^กะ/.test(r.shift) ? '' : 'กะ') + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ';
   }).catch(() => { $('ci_ph').textContent = ''; });
 }
 function ciMode(t) {
@@ -530,7 +530,7 @@ function formIncident() {
     '<div class="field"><label>ประเภทเหตุการณ์ <i>*</i></label></div><div class="type-grid" id="in_type">' + CFG.types.map(t => '<button type="button" class="type-btn" data-v="' + esc(t.name) + '" onclick="pickType(this)">' + (TYPE_EMOJI[t.name] || '•') + ' ' + esc(t.short) + '</button>').join('') + '</div>' +
     '<div class="field"><label for="in_pl">สถานที่เกิดเหตุ <i>*</i></label><select id="in_pl" onchange="$(\'in_plx\').hidden=this.value!==\'อื่นๆ\'"><option value="">— เลือกสถานที่ —</option>' + CFG.places.map(p => '<option>' + esc(p) + '</option>').join('') + '</select><input id="in_plx" placeholder="ระบุสถานที่" hidden></div>' +
     '<div class="field"><label for="in_s">เรื่อง</label><input id="in_s" oninput="this.dataset.edited=1"></div></div>' +
-    '<div class="section"><div class="slabel">📦 พัสดุที่เกี่ยวข้อง</div><div class="field"><label for="in_par">หมายเลขพัสดุ (บรรทัดละ 1 เลข)</label><textarea id="in_par" style="min-height:70px;text-transform:uppercase" oninput="$(\'prodBox\').hidden=!this.value.trim()"></textarea></div>' +
+    '<div class="section"><div class="slabel">📦 พัสดุที่เกี่ยวข้อง</div><div class="field"><label for="in_par">หมายเลขพัสดุ (บรรทัดละ 1 เลข)</label><textarea id="in_par" style="min-height:70px;text-transform:uppercase" oninput="$(\'prodBox\').hidden=!this.value.trim()"></textarea></div><button type="button" class="add-btn" onclick="inParScan()">📷 สแกนเลขพัสดุ (สแกนต่อได้หลายกล่อง)</button>' +
     '<div id="prodBox" hidden><div class="field"><label>ประเภทสินค้า <i>*</i></label></div><div class="pchips">' + CFG.products.map(p => '<button type="button" class="pchip" data-v="' + esc(p) + '" onclick="togArr(IN.products,this)">' + esc(p) + '</button>').join('') + '</div></div></div>' +
     '<div class="section"><div class="slabel">👥 ผู้ต้องสงสัย <span class="cnt" id="susN">0</span></div><div id="susList"></div><button type="button" class="add-btn" onclick="addSus()">＋ เพิ่มผู้ต้องสงสัย</button></div>' +
     '<div class="section"><div class="slabel">📝 รายละเอียดเหตุการณ์</div><div class="field"><textarea id="in_det" placeholder="เกิดอะไร ใครเกี่ยวข้อง ทำอะไรไปแล้ว"></textarea></div></div>' +
@@ -769,6 +769,7 @@ function gotCode(code) {
   if (SCAN_MODE === 'post') return gotPostQR(code);
   if (SCAN_MODE === 'phone') return phGotScan(code);
   if (SCAN_MODE === 'gate') return gpGotScan(code);
+  if (SCAN_MODE === 'inpar') return inParGot(code);
   if (SCAN_MODE === 'car') { const c = String(code || '').trim(); if (!c) return; closeScan(); SCAN_MODE = 'parcel'; carGo(c); return; }
   code = String(code || '').trim().toUpperCase();
   const now = Date.now();
@@ -891,7 +892,7 @@ function scanPhotoGot(inp) {
   img.src = url;
 }
 function closeScan() {
-  scanRun++; camHelpClose(); clearTimeout(scanTimer); scanTimer = null;
+  scanRun++; camHelpClose(); if (SCAN_MODE === 'inpar') SCAN_MODE = 'parcel'; clearTimeout(scanTimer); scanTimer = null;
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   if (zxReader) { try { zxReader.reset(); } catch (e) {} zxReader = null; }
   $('scanVideo').srcObject = null;
@@ -1008,6 +1009,18 @@ function formCar() {
     '<div class="bl-hint">รถพนักงานที่ลงทะเบียน · รถบริษัท SPX Express · รถรับส่ง</div><button type="button" class="bl-btn" id="car_go" onclick="carGo()">ตรวจสอบ</button>' +
     '<button type="button" class="bl-btn" style="background:#fff;color:#1f2328;border:1.5px solid #d6d9de;margin-top:8px" onclick="carScan()">📷 สแกน QR บนบัตรจอดรถ</button></div><div id="car_res"></div></div>';
   setTimeout(() => $('car_q') && $('car_q').focus(), 50);
+}
+// แจ้งเหตุ: สแกนเลขพัสดุลงช่อง "หมายเลขพัสดุ" (บรรทัดละ 1 เลข · ไม่ซ้ำ)
+function inParScan() { SCAN_MODE = 'inpar'; openScan(null); $('scanMsg').textContent = 'ส่องบาร์โค้ดเลขพัสดุ · สแกนต่อได้หลายกล่อง · เสร็จแล้วกด เสร็จ'; }
+function inParGot(code) {
+  code = String(code || '').trim().toUpperCase().replace(/\s+/g, ''); const now = Date.now();
+  if (!code || (code === lastCode && now - lastAt < 2500)) return; lastCode = code; lastAt = now;
+  const ta = $('in_par'); if (!ta) return;
+  const L = ta.value.split(/\n/).map(x => x.trim()).filter(Boolean);
+  if (L.indexOf(code) > -1) { $('scanMsg').textContent = 'เลขนี้มีแล้ว: ' + code; return; }
+  L.push(code); ta.value = L.join('\n'); if ($('prodBox')) $('prodBox').hidden = false;
+  if (navigator.vibrate) navigator.vibrate(60);
+  $('scanMsg').textContent = '✅ ได้แล้ว ' + code + ' · รวม ' + L.length + ' เลข · สแกนต่อ หรือกด เสร็จ';
 }
 function carScan() { SCAN_MODE = 'car'; openScan(null); $('scanMsg').textContent = 'ส่อง QR บนบัตรจอดรถ'; }
 function carGo(q) {
