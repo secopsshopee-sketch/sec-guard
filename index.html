@@ -434,7 +434,7 @@ function tsBox(t) {
 function backHome() { return '<button type="button" class="add-btn" style="margin-top:10px" onclick="home()">← กลับหน้าแรก</button>'; }
 
 // ═══════════════ ลงเวลา (หน้าตาเช็คกำลังพลเดิม) ═══════════════
-let CI = { type: '', photo: '', src: '' };
+let CI = { type: '', photo: '', src: '', st: null };
 function formCheckin() {
   theme('t-ci');
   CI = { type: '', photo: '', src: '' };
@@ -449,29 +449,44 @@ function ciStart() {
     '<button type="button" class="start-btn in" onclick="ciMode(\'เข้า\')"><span class="ic">' + ico('i-arrow-in') + '</span><span><span class="t2">เข้างาน</span><br><span class="d">บันทึกเวลาเริ่มกะ</span></span></button>' +
     '<button type="button" class="start-btn out" onclick="ciMode(\'ออก\')"><span class="ic">' + ico('i-arrow-out') + '</span><span><span class="t2">ออกงาน</span><br><span class="d">บันทึกเวลาเลิกกะ</span></span></button></div>';
 }
-// 1 จุด = 1 คนต่อกะ · จุดที่มีคนลงแล้วเลือกไม่ได้
+// 1 จุด = 1 คนต่อกะ · จุดที่มีคนลงแล้ว (รวมตัวเอง) เลือกไม่ได้ · ลงเข้าแล้วกดเข้าซ้ำไม่ได้ · ลงออกแล้วกดออกซ้ำไม่ได้
+// หน้าเว็บล็อกให้เห็นก่อน · เซิร์ฟเวอร์ตรวจซ้ำตอนบันทึกเสมอ (กันสองเครื่องกดพร้อมกัน)
 function postOptions(taken, me) {
   const keep = store.get('post_' + SITE.code);
   return '<option value="">เลือกจุด</option>' + CFG.posts.map(p => {
-    const who = taken[p], busy = who && who !== me;
-    return '<option value="' + esc(p) + '" ' + (busy ? 'disabled' : '') + ' ' + (!busy && keep === p ? 'selected' : '') + '>' + esc(p) + (busy ? ' — ไม่ว่าง (' + esc(who) + ')' : '') + '</option>';
+    const who = taken[p], busy = !!who;
+    return '<option value="' + esc(p) + '" ' + (busy ? 'disabled' : '') + ' ' + (!busy && keep === p ? 'selected' : '') + '>' + esc(p) + (busy ? (who === me ? ' — คุณลงแล้ว' : ' — ไม่ว่าง (' + esc(who) + ')') : '') + '</option>';
   }).join('');
 }
+function ciMe() { return $('ci_f') ? ($('ci_f').value.trim() + ' ' + $('ci_l').value.trim()).replace(/\s+/g, ' ').trim() : ''; }
+// ล็อกปุ่มบันทึกถ้าคนนี้ลงไปแล้ว
+function ciLockUI() {
+  const r = CI.st, go = $('go'), note = $('ci_lock'); if (!go || !note) return;
+  const me = ciMe(); let msg = '';
+  if (r && me) {
+    if (CI.type === 'เข้า' && r.inBy[me]) msg = '🔒 คุณลงเวลาเข้างาน' + (r.inShift ? 'กะนี้' : '') + 'แล้ว ที่จุด "' + r.inBy[me].post + '" เวลา ' + r.inBy[me].time + ' น. · กดซ้ำไม่ได้';
+    else if (CI.type === 'ออก' && r.outBy[me] && (r.inShift || !r.inBy[me])) msg = '🔒 คุณลงเวลาออกงาน' + (r.inShift ? 'กะนี้' : '') + 'แล้ว เวลา ' + r.outBy[me].time + ' น. · กดซ้ำไม่ได้';
+  }
+  note.textContent = msg; note.style.display = msg ? 'block' : 'none';
+  go.disabled = !!msg; go.style.opacity = msg ? '.45' : '';
+}
 function loadTaken() {
-  if (CI.type !== 'เข้า') { $('ci_ph').textContent = ''; return; }
-  $('ci_ph').textContent = 'กำลังเช็คจุดที่ว่าง…';
-  run('gTaken', SITE.code).then(r => {
+  $('ci_ph').textContent = 'กำลังเช็คสถานะ…';
+  run('gTaken', SITE.code, CI.type).then(r => {
     if (!$('ci_post')) return;
-    const me = ($('ci_f').value.trim() + ' ' + $('ci_l').value.trim()).replace(/\s+/g, ' ');
-    const cur = $('ci_post').value;
-    $('ci_post').innerHTML = postOptions(r.taken, me);
-    if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur;
-    const n = Object.keys(r.taken).length;
-    $('ci_ph').textContent = r.shift ? (/^กะ/.test(r.shift) ? '' : 'กะ') + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ';
+    CI.st = r;
+    if (CI.type === 'เข้า') {
+      const cur = $('ci_post').value;
+      $('ci_post').innerHTML = postOptions(r.taken, ciMe());
+      if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur;
+      const n = Object.keys(r.taken).length;
+      $('ci_ph').textContent = r.shift ? (/^กะ/.test(r.shift) ? '' : 'กะ') + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ (มาก่อนเวลาเกิน 1 ชม. หรือสายเกิน 4 ชม.) · บันทึกได้ แต่ไม่นับเข้ากะ Sec Ops จะยืนยันให้';
+    } else $('ci_ph').textContent = r.shift ? 'ออกงานกะ ' + r.shift.replace(/^กะ/, '') : '';
+    ciLockUI();
   }).catch(() => { $('ci_ph').textContent = ''; });
 }
 function ciMode(t) {
-  CI.type = t; CI.photo = ''; CI.src = '';
+  CI.type = t; CI.photo = ''; CI.src = ''; CI.st = null;
   const out = t === 'ออก', nm = (store.get('name') || '').split(' ');
   $('ciBody').innerHTML = '<div class="mode-bar ' + (out ? 'out' : 'in') + '"><div><small>กำลังบันทึก</small><b>' + (out ? 'ออกงาน' : 'เข้างาน') + '</b></div><button type="button" onclick="ciStart()">เปลี่ยน</button></div>' +
     '<div class="ci-card"><div class="tl">👤 ข้อมูลเจ้าหน้าที่</div>' +
@@ -480,9 +495,10 @@ function ciMode(t) {
     '<div class="field"><label for="ci_post">จุดประจำการ</label><select id="ci_post">' + postOptions({}) + '</select><div class="hs" id="ci_ph" style="font-size:12.5px;color:#4b5160"></div></div>' +
     '<div class="field"><label for="ci_id">รหัส รปภ. (ถ้ามี)</label><input id="ci_id" value="' + esc(store.get('gid')) + '"></div></div>' +
     '<div class="ci-card"><div class="tl">📷 รูปถ่ายยืนยัน</div><div class="camera-box" id="cam" onclick="$(\'camIn\').click()"><div class="camera-ph"><div class="camera-ic">📷</div><div class="camera-hint"><strong>แตะเพื่อถ่ายรูป</strong>ถ่ายหน้าตรง เห็นชุดฟอร์มชัดเจน</div></div></div></div>' +
-    '<div class="err" id="err"></div><div class="lockline">เวลาจะถูกล็อกตอนกดบันทึก</div>' +
+    '<div class="err" id="ci_lock" style="display:none"></div><div class="err" id="err"></div><div class="lockline">เวลาจะถูกล็อกตอนกดบันทึก</div>' +
     '<button type="button" class="ci-submit ' + (out ? 'out' : '') + '" id="go" onclick="sendCheckin()">' + (out ? '🔴 บันทึกออกงาน' : '🟢 บันทึกเข้างาน') + '</button>';
   loadTaken();
+  ['ci_f', 'ci_l'].forEach(id => $(id).addEventListener('input', () => { if (CI.st && CI.type === 'เข้า') { const cur = $('ci_post').value; $('ci_post').innerHTML = postOptions(CI.st.taken, ciMe()); if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur; } ciLockUI(); }));
 }
 $('camIn').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -512,7 +528,7 @@ function sendCheckin() {
     ov('<div class="overlay-icon">' + (r.type === 'เข้า' ? '🟢' : '🔴') + '</div><div class="overlay-title">บันทึก' + (r.type === 'เข้า' ? 'เข้างาน' : 'ออกงาน') + 'แล้ว</div>' +
       '<div class="overlay-big">' + esc(r.time) + ' น.</div><div class="overlay-sub">' + esc(r.name) + '<br>' + (r.shift ? esc(r.shift) + (r.type === 'เข้า' ? (r.late > 0 ? ' · ⚠️ สาย ' + r.late + ' นาที' : ' · ✅ ตรงเวลา') : '') : 'ไม่อยู่ในช่วงเวลากะ') +
       (r.sent ? '' : '<br><small>ส่ง Seatalk ไม่สำเร็จ (ข้อมูลบันทึกครบ)</small>') + '</div><button class="overlay-btn" onclick="ovClose();home()">กลับหน้าแรก</button>');
-  }).catch(e => showErr('⚠️ ' + errText(e)));
+  }).catch(e => { showErr('⚠️ ' + errText(e)); loadTaken(); });
 }
 
 // ═══════════════ แจ้งเหตุ (หน้าตา Incident Report เดิม) ═══════════════
