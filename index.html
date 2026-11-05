@@ -451,12 +451,22 @@ function ciStart() {
 }
 // 1 จุด = 1 คนต่อกะ · จุดที่มีคนลงแล้ว (รวมตัวเอง) เลือกไม่ได้ · ลงเข้าแล้วกดเข้าซ้ำไม่ได้ · ลงออกแล้วกดออกซ้ำไม่ได้
 // หน้าเว็บล็อกให้เห็นก่อน · เซิร์ฟเวอร์ตรวจซ้ำตอนบันทึกเสมอ (กันสองเครื่องกดพร้อมกัน)
-function postOptions(taken, me) {
+function postOptions(taken, me, list) {
   const keep = store.get('post_' + SITE.code);
-  return '<option value="">เลือกจุด</option>' + CFG.posts.map(p => {
+  return '<option value="">เลือกจุด</option>' + (list || CFG.posts).map(p => {
     const who = taken[p], busy = !!who;
     return '<option value="' + esc(p) + '" ' + (busy ? 'disabled' : '') + ' ' + (!busy && keep === p ? 'selected' : '') + '>' + esc(p) + (busy ? (who === me ? ' — คุณลงแล้ว' : ' — ไม่ว่าง (' + esc(who) + ')') : '') + '</option>';
   }).join('');
+}
+// ออกงาน: แสดงจุดของกะที่กำลังเลิก (ไม่ล็อกจุด) · เลือกจุดที่คนนี้ลงเข้าไว้ให้อัตโนมัติ
+function outOptions() {
+  const r = CI.st || {}, me = ciMe(), mine = r.inBy && r.inBy[me] ? r.inBy[me].post : '';
+  const list = (r.posts && r.posts.length ? r.posts : CFG.posts).slice();
+  if (mine && list.indexOf(mine) === -1) list.unshift(mine);
+  const sel = $('ci_post'), cur = sel.value;
+  sel.innerHTML = '<option value="">เลือกจุด</option>' + list.map(p => '<option value="' + esc(p) + '">' + esc(p) + (p === mine ? ' — จุดที่คุณลงเข้า' : '') + '</option>').join('');
+  const keep = store.get('post_' + SITE.code), pick = mine || (cur && list.indexOf(cur) > -1 ? cur : '') || (keep && list.indexOf(keep) > -1 ? keep : '');
+  if (pick) sel.value = pick;
 }
 function ciMe() { return $('ci_f') ? ($('ci_f').value.trim() + ' ' + $('ci_l').value.trim()).replace(/\s+/g, ' ').trim() : ''; }
 // ล็อกปุ่มบันทึกถ้าคนนี้ลงไปแล้ว
@@ -477,13 +487,13 @@ function loadTaken() {
     CI.st = r;
     if (CI.type === 'เข้า') {
       const cur = $('ci_post').value;
-      $('ci_post').innerHTML = postOptions(r.taken, ciMe());
+      $('ci_post').innerHTML = postOptions(r.taken, ciMe(), r.posts && r.posts.length ? r.posts : null);
       if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur;
       const n = Object.keys(r.taken).length;
       $('ci_ph').textContent = r.shift ? (/^กะ/.test(r.shift) ? '' : 'กะ') + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ (มาก่อนเวลาเกิน 1 ชม. หรือสายเกิน 4 ชม.) · บันทึกได้ แต่ไม่นับเข้ากะ Sec Ops จะยืนยันให้';
-    } else $('ci_ph').textContent = r.shift ? 'ออกงานกะ ' + r.shift.replace(/^กะ/, '') : '';
+    } else { outOptions(); $('ci_ph').textContent = r.shift ? 'ออกงานกะ ' + r.shift.replace(/^กะ/, '') : 'ไม่อยู่ในช่วงเวลาเลิกกะ · เลือกจุดที่คุณประจำการ'; }
     ciLockUI();
-  }).catch(() => { $('ci_ph').textContent = ''; });
+  }).catch(() => { $('ci_ph').textContent = ''; if ($('ci_post') && CI.type === 'ออก') outOptions(); });
 }
 function ciMode(t) {
   CI.type = t; CI.photo = ''; CI.src = ''; CI.st = null;
@@ -492,13 +502,13 @@ function ciMode(t) {
     '<div class="ci-card"><div class="tl">👤 ข้อมูลเจ้าหน้าที่</div>' +
     '<div class="row2"><div class="field"><label for="ci_f">ชื่อ</label><input id="ci_f" value="' + esc(nm[0] || '') + '" placeholder="ชื่อ"></div><div class="field"><label for="ci_l">นามสกุล</label><input id="ci_l" value="' + esc(nm.slice(1).join(' ')) + '" placeholder="นามสกุล"></div></div>' +
     '<div class="field"><label for="ci_p">ตำแหน่ง</label><select id="ci_p"><option value="">เลือกตำแหน่ง</option>' + B.positions.map(p => '<option ' + (store.get('pos') === p ? 'selected' : '') + '>' + esc(p) + '</option>').join('') + '</select></div>' +
-    '<div class="field"><label for="ci_post">จุดประจำการ</label><select id="ci_post">' + postOptions({}) + '</select><div class="hs" id="ci_ph" style="font-size:12.5px;color:#4b5160"></div></div>' +
+    '<div class="field"><label for="ci_post">จุดประจำการ</label><select id="ci_post">' + (out ? '<option value="">กำลังโหลดจุด…</option>' : postOptions({})) + '</select><div class="hs" id="ci_ph" style="font-size:12.5px;color:#4b5160"></div></div>' +
     '<div class="field"><label for="ci_id">รหัส รปภ. (ถ้ามี)</label><input id="ci_id" value="' + esc(store.get('gid')) + '"></div></div>' +
     '<div class="ci-card"><div class="tl">📷 รูปถ่ายยืนยัน</div><div class="camera-box" id="cam" onclick="$(\'camIn\').click()"><div class="camera-ph"><div class="camera-ic">📷</div><div class="camera-hint"><strong>แตะเพื่อถ่ายรูป</strong>ถ่ายหน้าตรง เห็นชุดฟอร์มชัดเจน</div></div></div></div>' +
     '<div class="err" id="ci_lock" style="display:none"></div><div class="err" id="err"></div><div class="lockline">เวลาจะถูกล็อกตอนกดบันทึก</div>' +
     '<button type="button" class="ci-submit ' + (out ? 'out' : '') + '" id="go" onclick="sendCheckin()">' + (out ? '🔴 บันทึกออกงาน' : '🟢 บันทึกเข้างาน') + '</button>';
   loadTaken();
-  ['ci_f', 'ci_l'].forEach(id => $(id).addEventListener('input', () => { if (CI.st && CI.type === 'เข้า') { const cur = $('ci_post').value; $('ci_post').innerHTML = postOptions(CI.st.taken, ciMe()); if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur; } ciLockUI(); }));
+  ['ci_f', 'ci_l'].forEach(id => $(id).addEventListener('input', () => { if (CI.st && CI.type === 'เข้า') { const cur = $('ci_post').value; $('ci_post').innerHTML = postOptions(CI.st.taken, ciMe(), CI.st.posts && CI.st.posts.length ? CI.st.posts : null); if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur; } else if (CI.st) outOptions(); ciLockUI(); }));
 }
 $('camIn').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
