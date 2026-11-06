@@ -325,7 +325,7 @@ const stamp = d => ymd(d) + ' ' + hms(d);
 const ico = (id, cls) => '<svg class="svg ' + (cls || '') + '"><use href="#' + id + '"/></svg>';
 setInterval(() => { const d = new Date(); document.querySelectorAll('.lt').forEach(e => e.textContent = hms(d)); document.querySelectorAll('.lth').forEach(e => e.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes())); document.querySelectorAll('.ld').forEach(e => e.textContent = thDate(d)); }, 1000);
 
-let QR_SITE = '', QR_POST = '', QR_GO = '', B = null, SITE = null, CFG = null, GPS = { lat: null, lng: null, st: 'wait' };
+let BL_ONLY = false, QR_SITE = '', QR_POST = '', QR_GO = '', B = null, SITE = null, CFG = null, GPS = { lat: null, lng: null, st: 'wait' };
 const deviceId = (() => { let d = store.get('device'); if (!d) { d = 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); store.set('device', d); } return d; })();
 function theme(t) { document.body.className = t; window.scrollTo(0, 0); }
 
@@ -335,9 +335,10 @@ Promise.all([run('gBoot'), getLoc()]).then(([b, loc]) => {
   // เข้าลิงก์ / สแกน QR → เริ่มที่หน้าเลือกพื้นที่ประจำการเสมอ (พื้นที่จาก QR หรือที่ใช้ล่าสุดขึ้นเป็นตัวแนะนำ)
   QR_SITE = (loc && loc.parameter && loc.parameter.site) || '';
   QR_POST = (loc && loc.parameter && loc.parameter.post) || '';
-  QR_GO = (loc && loc.parameter && loc.parameter.go) || '';   // ลิงก์ตรงเข้าฟอร์ม (จากหน้ารวมลิงก์) · ยังเริ่มที่หน้าเลือกพื้นที่ก่อน
+  QR_GO = (loc && loc.parameter && loc.parameter.go) || '';
+  if (QR_GO === 'blonly') { BL_ONLY = true; QR_GO = 'bl'; }   // ลิงก์ตรวจ BlackList หน้าเดียว · ไม่มีปุ่มกลับหน้าแรก / เมนูอื่น   // ลิงก์ตรงเข้าฟอร์ม (จากหน้ารวมลิงก์) · ยังเริ่มที่หน้าเลือกพื้นที่ก่อน
   watchGPS();
-  pickSite();
+  if (BL_ONLY && QR_SITE && B.sites.some(s => s.code === QR_SITE)) openSite(QR_SITE); else pickSite();
 }).catch(e => fatal(errText(e)));
 
 function fatal(t) { theme('t-hub'); $('app').innerHTML = '<div style="padding:40px 18px;text-align:center"><div class="overlay-icon">⚠️</div><div class="overlay-title">เปิดไม่สำเร็จ</div><div class="overlay-sub">' + esc(t) + '</div><button class="overlay-btn" onclick="location.reload()">ลองใหม่</button></div>'; }
@@ -391,6 +392,7 @@ function openSite(code) {
 }
 
 function home() {
+  if (BL_ONLY) return formBL();   // โหมดตรวจ BlackList หน้าเดียว
   theme('t-hub');
   let h = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>' + esc(SITE.name) + ' · <button type="button" onclick="pickSite()">เปลี่ยนพื้นที่</button></small></div></div>' +
     '<div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
@@ -1008,7 +1010,7 @@ async function sendVoice() {
 // ═══════════════ ตรวจ BlackList (หน้าตาเดิม) ═══════════════
 function formBL() {
   theme('t-bl');
-  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">SEC</div><div><div class="bs">SPX SECURITY · ทุกสถานที่</div><div class="bt">ตรวจสอบบุคคล</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
+  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">SEC</div><div><div class="bs">SPX SECURITY · ทุกสถานที่</div><div class="bt">ตรวจสอบบุคคล</div></div>' + (BL_ONLY ? '<div style="margin-left:auto;text-align:right;font-size:12px;opacity:.85">' + esc(SITE.name || SITE.code) + '</div>' : '<button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button>') + '</div>' +
     '<div class="bl-main"><div class="bl-card"><div class="bl-l">ตรวจก่อนให้เข้าพื้นที่</div><input id="bl_q" class="bl-in" placeholder="เลขบัตร / พาสปอร์ต / ชื่อ" autocomplete="off" onkeydown="if(event.key===\'Enter\')blGo()">' +
     '<div class="bl-hint">พิมพ์ได้ทั้งเลขบัตรประชาชน เลขพาสปอร์ต หรือชื่อ-นามสกุล</div><button type="button" class="bl-btn" id="bl_go" onclick="blGo()">ตรวจสอบ</button></div><div id="bl_res"></div></div>';
   setTimeout(() => $('bl_q') && $('bl_q').focus(), 50);
