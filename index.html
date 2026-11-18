@@ -353,6 +353,8 @@ function gpsInfo() {
   return { c: 'wait', t: 'กำลังระบุตำแหน่ง...' };
 }
 function gpsUI() {
+  pickRefresh();
+  if (!SITE) return;
   const g = gpsInfo();
   document.querySelectorAll('.gpst').forEach(el => { el.className = 't span2 gpst ' + g.c; el.innerHTML = '<span class="dot ' + g.c + '"></span><span>' + esc(g.t) + '</span>'; });
   document.querySelectorAll('.gpsb').forEach(el => el.innerHTML = '<span class="dot ' + g.c + '"></span><span>' + esc(g.t) + '</span>');
@@ -366,20 +368,47 @@ function busyT(t, pct) { if ($('busyT')) $('busyT').textContent = t; if (pct !==
 function showErr(t) { ovClose(); const e = $('err'); if (!e) return alert(t); e.textContent = t; e.style.display = t ? 'block' : 'none'; if (t) e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 
 // ═══════════════ เลือกพื้นที่ / หน้าแรก ═══════════════
+// v4.93 หน้าเลือกพื้นที่: แสดงเฉพาะพื้นที่ที่อยู่ในรัศมีจาก GPS (นอกระยะ = ไม่เห็นชื่อพื้นที่)
+//  พื้นที่ที่ยังไม่ได้ตั้งพิกัด → แสดงแยก (ตรวจระยะไม่ได้) · ปิด GPS → ไม่แสดงพื้นที่ ต้องเปิด GPS ก่อน
+let PICK_SIG = '';
+function nearSites() {
+  const tol = Math.min(Number(GPS.acc) || 0, 200);
+  return B.sites.map(s => ({ s: s, d: dist(s, GPS) })).filter(x => x.d !== null && x.d <= x.s.radius + tol).sort((a, b) => a.d - b.d);
+}
 function pickSite() {
-  theme('t-hub');
-  const near = GPS.st === 'ok' ? B.sites.map(s => ({ s: s, d: dist(s, GPS) })).filter(x => x.d !== null && x.d <= x.s.radius).sort((a, b) => a.d - b.d)[0] : null;
-  const has = c => B.sites.some(s => s.code === c);
-  const qr = has(QR_SITE) ? QR_SITE : '', last = has(store.get('site')) ? store.get('site') : '';
-  const sug = qr || (near && near.s.code) || last;
-  const why = qr ? 'จาก QR ที่สแกน' : near && near.s.code === sug ? 'ใกล้ที่สุดจาก GPS · ' + Math.round(near.d) + ' ม.' : 'ใช้ล่าสุด';
-  let h = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>เลือกพื้นที่ประจำการ</small></div></div><div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
-  if (!B.sites.length) h += '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้ง Sec Ops</div></div>';
-  if (sug) { const s = B.sites.find(x => x.code === sug); h += '<div class="sec">แนะนำ · ' + esc(why) + '</div><button type="button" class="sitebtn near" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#e8622c;font-weight:700">เข้าพื้นที่นี้ →</span></button>'; }
-  h += '<div class="sec">' + (sug ? 'หรือเลือกพื้นที่อื่น' : 'พื้นที่ทั้งหมด') + '</div>' + B.sites.filter(s => s.code !== sug).map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
-  h += '<div class="foot">ตรวจให้ตรงกับพื้นที่ที่ประจำการวันนี้ก่อนกดเข้า</div>';
+  theme('t-hub'); SITE = null;
+  const top = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>เลือกพื้นที่ประจำการ</small></div></div><div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
+  if (!B.sites.length) { PICK_SIG = 'none'; $('app').innerHTML = top + '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้ง Sec Ops</div></div>'; return; }
+  const noXY = B.sites.filter(s => !s.lat || !s.lng);
+  let h = top, sig;
+  if (GPS.st !== 'ok') {
+    sig = 'gps-' + GPS.st;
+    h += GPS.st === 'bad'
+      ? '<div class="notice"><b>📍 ต้องเปิด GPS ก่อน</b><div>ระบบจะแสดงเฉพาะพื้นที่ที่คุณอยู่ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome (Settings → Chrome → Permissions → Location)</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ลองใหม่</button></div>'
+      : '<div class="loading"><div class="spinner" style="margin:0"></div>กำลังระบุตำแหน่งเพื่อแสดงพื้นที่ของคุณ…</div>';
+  } else {
+    const near = nearSites(), qr = near.find(x => x.s.code === QR_SITE), last = near.find(x => x.s.code === store.get('site'));
+    const first = qr || near[0];
+    sig = 'ok-' + near.map(x => x.s.code).join(',');
+    if (near.length) {
+      h += '<div class="sec">พื้นที่ของคุณ · ' + esc(qr ? 'จาก QR ที่สแกน' : 'ใกล้ที่สุดจาก GPS') + ' · ' + Math.round(first.d) + ' ม.</div>' +
+        '<button type="button" class="sitebtn near" onclick="openSite(\'' + esc(first.s.code) + '\')"><b>' + esc(first.s.name) + '</b><span style="color:#e8622c;font-weight:700">เข้าพื้นที่นี้ →</span></button>';
+      const rest = near.filter(x => x !== first);
+      if (rest.length) h += '<div class="sec">พื้นที่อื่นในระยะ</div>' + rest.map(x => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(x.s.code) + '\')"><b>' + esc(x.s.name) + '</b><span style="color:#7a8190">' + Math.round(x.d) + ' ม.</span></button>').join('');
+    } else {
+      h += '<div class="notice"><b>ไม่พบพื้นที่ในระยะ</b><div>ตำแหน่งของคุณอยู่นอกพื้นที่ทุกแห่ง' + (QR_SITE ? ' (รวมถึงพื้นที่ใน QR ที่สแกน)' : '') + ' · เดินเข้าพื้นที่แล้วรอสักครู่ ระบบจะแสดงให้เอง' + (GPS.acc > 100 ? ' · ตอนนี้ GPS คลาดเคลื่อน ±' + Math.round(GPS.acc) + ' ม. ลองออกไปที่โล่ง' : '') + '</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ระบุตำแหน่งใหม่</button></div>';
+    }
+  }
+  if (noXY.length) h += '<div class="sec">พื้นที่ที่ยังไม่ได้ตั้งพิกัด (ตรวจระยะไม่ได้)</div>' + noXY.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
+  h += '<div class="foot">แสดงเฉพาะพื้นที่ที่คุณอยู่ในรัศมี · ตรวจให้ตรงกับพื้นที่ที่ประจำการวันนี้ก่อนกดเข้า</div>';
+  PICK_SIG = sig;
   $('app').innerHTML = h;
-  if (GPS.st === 'wait' && !qr && B.sites.length) setTimeout(() => { if (!SITE && GPS.st === 'ok' && $('app').innerHTML.indexOf('เลือกพื้นที่ประจำการ') > -1) pickSite(); }, 2500);
+}
+// GPS เปลี่ยน → ถ้ายังอยู่หน้าเลือกพื้นที่ และรายชื่อพื้นที่ในระยะเปลี่ยน ให้วาดใหม่
+function pickRefresh() {
+  if (SITE || !B || !$('app') || $('app').innerHTML.indexOf('เลือกพื้นที่ประจำการ') === -1) return;
+  const sig = GPS.st !== 'ok' ? 'gps-' + GPS.st : 'ok-' + nearSites().map(x => x.s.code).join(',');
+  if (sig !== PICK_SIG) pickSite();
 }
 
 function openSite(code) {
@@ -526,10 +555,11 @@ function shrink(file, max, q) {
 }
 // v4.91 ลงเวลาต้องเปิด GPS (ห้ามปิด) และต้องอยู่ในรัศมีของพื้นที่
 function gpsRetry() {
-  if (!navigator.geolocation) return showErr('⚠️ เครื่องนี้ไม่รองรับ GPS · ใช้เครื่องอื่นลงเวลา');
-  showErr('กำลังระบุตำแหน่ง...');
-  navigator.geolocation.getCurrentPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now(), st: 'ok' }; gpsUI(); showErr(''); },
-    () => { GPS.st = 'bad'; gpsUI(); showErr('⚠️ ยังเปิด GPS ไม่ได้ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome แล้วลองใหม่'); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  const msg = t => { if (SITE) showErr(t); };   // หน้าเลือกพื้นที่ไม่มีช่องข้อความ → หน้าจอวาดใหม่เอง
+  if (!navigator.geolocation) return msg('⚠️ เครื่องนี้ไม่รองรับ GPS · ใช้เครื่องอื่นลงเวลา');
+  msg('กำลังระบุตำแหน่ง...'); if (!SITE) { GPS.st = 'wait'; pickRefresh(); }
+  navigator.geolocation.getCurrentPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now(), st: 'ok' }; gpsUI(); msg(''); },
+    () => { GPS.st = 'bad'; gpsUI(); msg('⚠️ ยังเปิด GPS ไม่ได้ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome แล้วลองใหม่'); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }
 function gpsGate() {
   if (GPS.st !== 'ok' || !GPS.lat || Date.now() - (GPS.at || 0) > 120000) { showErr('⚠️ ต้องเปิด GPS ก่อนลงเวลา · เปิด Location ของเครื่อง + อนุญาตตำแหน่งให้ Chrome แล้วกด "ลองใหม่"'); if ($('err')) $('err').insertAdjacentHTML('beforeend', ' <button type="button" class="retake" style="position:static;margin-left:6px" onclick="gpsRetry()">📍 ลองใหม่</button>'); return false; }
