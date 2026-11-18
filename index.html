@@ -3,11 +3,8 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
-<!-- ลิงก์ /exec ของแอป รปภ. (Apps Script) -->
-<meta name="sec-api" content="https://script.google.com/macros/s/AKfycbzKuzWXIaV5tzmqRxCkOxXr9hinWdaDN1b7WolAJtk4kQ_nnh8R42jPS7DMcUOLGn7P/exec">
-<title>รปภ. · Shopee Security</title>
-<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="sec-api" content="วางลิงก์ /exec ของแอป รปภ. ที่นี่">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Prompt:wght@500;600;700&family=Kanit:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -346,12 +343,12 @@ function fatal(t) { theme('t-hub'); $('app').innerHTML = '<div style="padding:40
 // ── GPS ──
 function watchGPS() {
   if (!navigator.geolocation) { GPS.st = 'bad'; return; }
-  navigator.geolocation.watchPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, st: 'ok' }; gpsUI(); },
+  navigator.geolocation.watchPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now(), st: 'ok' }; gpsUI(); },
     () => { GPS.st = 'bad'; gpsUI(); }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
 }
 function dist(a, b) { if (!a || !a.lat || !b.lat) return null; const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
 function gpsInfo() {
-  if (GPS.st === 'bad') return { c: 'bad', t: '❌ GPS ถูกปฏิเสธ — เปิด Settings → Chrome → Permissions → Location (ยังส่งได้ แต่จะบันทึกว่าไม่มีพิกัด)' };
+  if (GPS.st === 'bad') return { c: 'bad', t: '❌ ปิด GPS อยู่ — ต้องเปิดตำแหน่งก่อนลงเวลา: เปิด Location ของเครื่อง + อนุญาตตำแหน่งให้ Chrome (Settings → Chrome → Permissions → Location) แล้วกดลองใหม่' };
   if (GPS.st === 'ok') { const d = dist(SITE, GPS); if (d !== null && d > SITE.radius) return { c: 'bad', t: '⚠️ อยู่นอกพื้นที่ ' + SITE.code + ' ประมาณ ' + Math.round(d) + ' ม.' }; return { c: 'ok', t: '✅ ระบุตำแหน่งได้แล้ว · ' + SITE.code }; }
   return { c: 'wait', t: 'กำลังระบุตำแหน่ง...' };
 }
@@ -527,9 +524,22 @@ function shrink(file, max, q) {
     img.src = url;
   });
 }
+// v4.91 ลงเวลาต้องเปิด GPS (ห้ามปิด) และต้องอยู่ในรัศมีของพื้นที่
+function gpsRetry() {
+  if (!navigator.geolocation) return showErr('⚠️ เครื่องนี้ไม่รองรับ GPS · ใช้เครื่องอื่นลงเวลา');
+  showErr('กำลังระบุตำแหน่ง...');
+  navigator.geolocation.getCurrentPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now(), st: 'ok' }; gpsUI(); showErr(''); },
+    () => { GPS.st = 'bad'; gpsUI(); showErr('⚠️ ยังเปิด GPS ไม่ได้ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome แล้วลองใหม่'); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+function gpsGate() {
+  if (GPS.st !== 'ok' || !GPS.lat || Date.now() - (GPS.at || 0) > 120000) { showErr('⚠️ ต้องเปิด GPS ก่อนลงเวลา · เปิด Location ของเครื่อง + อนุญาตตำแหน่งให้ Chrome แล้วกด "ลองใหม่"'); if ($('err')) $('err').insertAdjacentHTML('beforeend', ' <button type="button" class="retake" style="position:static;margin-left:6px" onclick="gpsRetry()">📍 ลองใหม่</button>'); return false; }
+  const dd = dist(SITE, GPS); if (dd !== null && dd > SITE.radius) { showErr('⚠️ อยู่นอกพื้นที่ ' + SITE.code + ' ประมาณ ' + Math.round(dd) + ' ม. · ลงเวลาได้เฉพาะในพื้นที่ (รัศมี ' + SITE.radius + ' ม.)'); return false; }
+  return true;
+}
 function sendCheckin() {
+  if (!gpsGate()) return;
   const d = { site: SITE.code, first: $('ci_f').value.trim(), last: $('ci_l').value.trim(), position: $('ci_p').value, post: $('ci_post').value, type: CI.type,
-    guardId: $('ci_id').value.trim(), photo: CI.photo, photoSource: CI.src, lat: GPS.lat, lng: GPS.lng, deviceId: deviceId };
+    guardId: $('ci_id').value.trim(), photo: CI.photo, photoSource: CI.src, lat: GPS.lat, lng: GPS.lng, acc: GPS.acc, deviceId: deviceId };
   if (!d.first || !d.last) return showErr('⚠️ กรุณากรอกชื่อและนามสกุล');
   if (!d.position) return showErr('⚠️ กรุณาเลือกตำแหน่ง');
   if (!d.post) return showErr('⚠️ กรุณาเลือกจุดประจำการ');
