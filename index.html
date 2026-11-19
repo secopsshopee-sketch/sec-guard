@@ -327,7 +327,13 @@ const deviceId = (() => { let d = store.get('device'); if (!d) { d = 'D' + Date.
 function theme(t) { document.body.className = t; window.scrollTo(0, 0); }
 
 // ── เริ่ม ──
-Promise.all([run('gBoot'), getLoc()]).then(([b, loc]) => {
+// v5.00 ลิงก์ Sec Ops (?so=) → เก็บไว้ในแท็บนี้ แล้วเอาออกจากแถบที่อยู่ (กันติดไปกับการแชร์ลิงก์)
+getLoc().then(loc => {
+  const P = (loc && loc.parameter) || {};
+  let so = P.so || ''; try { if (so) sessionStorage.setItem('sec_so', so); else so = sessionStorage.getItem('sec_so') || ''; } catch (e) {}
+  if (P.so && !IN_GAS) { try { const u = new URL(location.href); u.searchParams.delete('so'); history.replaceState(null, '', u.toString()); } catch (e) {} }
+  return Promise.all([run('gBoot', so), Promise.resolve(loc)]);
+}).then(([b, loc]) => {
   B = b;
   // เข้าลิงก์ / สแกน QR → เริ่มที่หน้าเลือกพื้นที่ประจำการเสมอ (พื้นที่จาก QR หรือที่ใช้ล่าสุดขึ้นเป็นตัวแนะนำ)
   QR_SITE = (loc && loc.parameter && loc.parameter.site) || '';
@@ -388,12 +394,25 @@ function pickSite() {
   if (!B.sites.length) { PICK_SIG = 'none'; $('app').innerHTML = top + '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้ง Sec Ops</div></div>'; return; }
   const noXY = B.sites.filter(s => !(s.geo && s.geo.length) && (!s.lat || !s.lng));
   let h = top, sig;
+  if (GPS.st !== 'ok' && B.so) {
+    sig = 'so-gps-' + GPS.st;
+    h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมด Sec Ops · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · GPS ยังไม่พร้อม</div></div><div class="sec">ทุกพื้นที่</div>' + B.sites.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
+    PICK_SIG = sig; $('app').innerHTML = h; return;
+  }
   if (GPS.st !== 'ok') {
     sig = 'gps-' + GPS.st;
     h += GPS.st === 'bad'
       ? '<div class="notice"><b>📍 ต้องเปิด GPS ก่อน</b><div>ระบบจะแสดงเฉพาะพื้นที่ที่คุณอยู่ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome (Settings → Chrome → Permissions → Location)</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ลองใหม่</button></div>'
       : '<div class="loading"><div class="spinner" style="margin:0"></div>กำลังระบุตำแหน่งเพื่อแสดงพื้นที่ของคุณ…</div>';
   } else {
+    if (B.so) {   // โหมด Sec Ops: แสดงทุกพื้นที่ (ในระยะขึ้นก่อน)
+      const near = nearSites(), far = B.sites.filter(s => !near.some(x => x.s === s));
+      sig = 'so-' + near.map(x => x.s.code).join(',');
+      h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมด Sec Ops · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · ลงเวลายังต้องอยู่ในรัศมีของพื้นที่</div></div>';
+      if (near.length) h += '<div class="sec">ในระยะ GPS</div>' + near.map(x => '<button type="button" class="sitebtn near" onclick="openSite(\'' + esc(x.s.code) + '\')"><b>' + esc(x.s.name) + '</b><span style="color:#e8622c;font-weight:700">เข้าพื้นที่นี้ →</span></button>').join('');
+      h += '<div class="sec">ทุกพื้นที่</div>' + far.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
+      PICK_SIG = sig; $('app').innerHTML = h + '<div class="foot">โหมดนี้สำหรับ Sec Ops เท่านั้น</div>'; return;
+    }
     const near = nearSites(), qr = near.find(x => x.s.code === QR_SITE), last = near.find(x => x.s.code === store.get('site'));
     const first = qr || near[0];
     sig = 'ok-' + near.map(x => x.s.code).join(',');
@@ -414,7 +433,7 @@ function pickSite() {
 // GPS เปลี่ยน → ถ้ายังอยู่หน้าเลือกพื้นที่ และรายชื่อพื้นที่ในระยะเปลี่ยน ให้วาดใหม่
 function pickRefresh() {
   if (SITE || !B || !$('app') || $('app').innerHTML.indexOf('เลือกพื้นที่ประจำการ') === -1) return;
-  const sig = GPS.st !== 'ok' ? 'gps-' + GPS.st : 'ok-' + nearSites().map(x => x.s.code).join(',');
+  const sig = B.so ? (GPS.st !== 'ok' ? 'so-gps-' + GPS.st : 'so-' + nearSites().map(x => x.s.code).join(',')) : GPS.st !== 'ok' ? 'gps-' + GPS.st : 'ok-' + nearSites().map(x => x.s.code).join(',');
   if (sig !== PICK_SIG) pickSite();
 }
 
