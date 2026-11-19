@@ -392,7 +392,6 @@ function pickSite() {
   theme('t-hub'); SITE = null;
   const top = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>เลือกพื้นที่ประจำการ</small></div></div><div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
   if (!B.sites.length) { PICK_SIG = 'none'; $('app').innerHTML = top + '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้ง Sec Ops</div></div>'; return; }
-  const noXY = B.sites.filter(s => !(s.geo && s.geo.length) && (!s.lat || !s.lng));
   let h = top, sig;
   if (GPS.st !== 'ok' && B.so) {
     sig = 'so-gps-' + GPS.st;
@@ -410,7 +409,7 @@ function pickSite() {
       sig = 'so-' + near.map(x => x.s.code).join(',');
       h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมด Sec Ops · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · ลงเวลายังต้องอยู่ในรัศมีของพื้นที่</div></div>';
       if (near.length) h += '<div class="sec">ในระยะ GPS</div>' + near.map(x => '<button type="button" class="sitebtn near" onclick="openSite(\'' + esc(x.s.code) + '\')"><b>' + esc(x.s.name) + '</b><span style="color:#e8622c;font-weight:700">เข้าพื้นที่นี้ →</span></button>').join('');
-      h += '<div class="sec">ทุกพื้นที่</div>' + far.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
+      h += '<div class="sec">ทุกพื้นที่</div>' + far.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + (!(s.geo && s.geo.length) && !s.lat ? '⚠️ ยังไม่ตั้งพิกัด' : esc(s.bu || '')) + '</span></button>').join('');
       PICK_SIG = sig; $('app').innerHTML = h + '<div class="foot">โหมดนี้สำหรับ Sec Ops เท่านั้น</div>'; return;
     }
     const near = nearSites(), qr = near.find(x => x.s.code === QR_SITE), last = near.find(x => x.s.code === store.get('site'));
@@ -425,7 +424,7 @@ function pickSite() {
       h += '<div class="notice"><b>ไม่พบพื้นที่ในระยะ</b><div>ตำแหน่งของคุณอยู่นอกพื้นที่ทุกแห่ง' + (QR_SITE ? ' (รวมถึงพื้นที่ใน QR ที่สแกน)' : '') + ' · เดินเข้าพื้นที่แล้วรอสักครู่ ระบบจะแสดงให้เอง' + (GPS.acc > 100 ? ' · ตอนนี้ GPS คลาดเคลื่อน ±' + Math.round(GPS.acc) + ' ม. ลองออกไปที่โล่ง' : '') + '</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ระบุตำแหน่งใหม่</button></div>';
     }
   }
-  if (noXY.length) h += '<div class="sec">พื้นที่ที่ยังไม่ได้ตั้งพิกัด (ตรวจระยะไม่ได้)</div>' + noXY.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
+  // v5.01 พื้นที่ที่ยังไม่ได้ตั้งพิกัด → ไม่แสดงให้ รปภ. (โหมด Sec Ops ยังเห็นทุกพื้นที่)
   h += '<div class="foot">แสดงเฉพาะพื้นที่ที่คุณอยู่ในรัศมี · ตรวจให้ตรงกับพื้นที่ที่ประจำการวันนี้ก่อนกดเข้า</div>';
   PICK_SIG = sig;
   $('app').innerHTML = h;
