@@ -346,7 +346,14 @@ function watchGPS() {
   navigator.geolocation.watchPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now(), st: 'ok' }; gpsUI(); },
     () => { GPS.st = 'bad'; gpsUI(); }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
 }
-function dist(a, b) { if (!a || !a.lat || !b.lat) return null; const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
+function dist0(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
+// v4.99 พื้นที่ที่มีหลายจุด (พิกัดลงเวลาเพิ่ม): วัดจากจุดที่ใกล้ขอบที่สุด แล้วเทียบเป็นรัศมีหลัก (ค่า <= radius = อยู่ในพื้นที่)
+function dist(a, b) {
+  if (!a || !b || !b.lat) return null;
+  const G = (a.geo && a.geo.length) ? a.geo : (a.lat ? [{ lat: a.lat, lng: a.lng, radius: a.radius }] : []);
+  if (!G.length) return null;
+  return Math.max(0, Math.min.apply(null, G.map(g => dist0(g, b) - g.radius)) + a.radius);
+}
 function gpsInfo() {
   if (GPS.st === 'bad') return { c: 'bad', t: '❌ ปิด GPS อยู่ — ต้องเปิดตำแหน่งก่อนลงเวลา: เปิด Location ของเครื่อง + อนุญาตตำแหน่งให้ Chrome (Settings → Chrome → Permissions → Location) แล้วกดลองใหม่' };
   if (GPS.st === 'ok') { const d = dist(SITE, GPS); if (d !== null && d > SITE.radius) return { c: 'bad', t: '⚠️ อยู่นอกพื้นที่ ' + SITE.code + ' ประมาณ ' + Math.round(d) + ' ม.' }; return { c: 'ok', t: '✅ ระบุตำแหน่งได้แล้ว · ' + SITE.code }; }
@@ -379,7 +386,7 @@ function pickSite() {
   theme('t-hub'); SITE = null;
   const top = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>เลือกพื้นที่ประจำการ</small></div></div><div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
   if (!B.sites.length) { PICK_SIG = 'none'; $('app').innerHTML = top + '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้ง Sec Ops</div></div>'; return; }
-  const noXY = B.sites.filter(s => !s.lat || !s.lng);
+  const noXY = B.sites.filter(s => !(s.geo && s.geo.length) && (!s.lat || !s.lng));
   let h = top, sig;
   if (GPS.st !== 'ok') {
     sig = 'gps-' + GPS.st;
