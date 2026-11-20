@@ -604,6 +604,7 @@ function sendCheckin() {
   run('checkin', d).then(r => {
     ov('<div class="overlay-icon">' + (r.type === 'เข้า' ? '🟢' : '🔴') + '</div><div class="overlay-title">บันทึก' + (r.type === 'เข้า' ? 'เข้างาน' : 'ออกงาน') + 'แล้ว</div>' +
       '<div class="overlay-big">' + esc(r.time) + ' น.</div><div class="overlay-sub">' + esc(r.name) + '<br>' + (r.shift ? esc(r.shift) + (r.type === 'เข้า' ? (r.late > 0 ? ' · ⚠️ สาย ' + r.late + ' นาที' : ' · ✅ ตรงเวลา') : '') : 'ไม่อยู่ในช่วงเวลากะ') +
+      (r.point && r.multi ? '<br><span style="display:inline-block;margin-top:8px;background:#FDEBE3;color:#C2410C;border-radius:999px;padding:4px 12px;font-weight:700">📍 ' + esc(r.point) + ' · ' + esc(r.pointD) + ' ม.</span>' : '') +
       (r.sent ? '' : '<br><small>ส่ง Seatalk ไม่สำเร็จ (ข้อมูลบันทึกครบ)</small>') + '</div><button class="overlay-btn" onclick="ovClose();home()">กลับหน้าแรก</button>');
   }).catch(e => { showErr('⚠️ ' + errText(e)); loadTaken(); });
 }
