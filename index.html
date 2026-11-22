@@ -455,7 +455,7 @@ function home() {
   });
   h += '<div class="sec">ใช้ทุกกะ</div><div class="bento">' +
     '<button type="button" class="b big tall" onclick="formCheckin()"><div class="ic">' + ico('i-in') + '</div><b>ลงเวลา<br>เข้า-ออกงาน<small>เช็คอินประจำกะ</small></b></button>' +
-    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>ห้องน้ำ · ประตูหนีไฟ · กุญแจ</small></b></button>' +
+    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>รับ-ส่งกุญแจ · อื่นๆ</small></b></button>' +
     '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>BlackList<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
     '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>Patrol ตรวจจุดเสี่ยง<small>สแกน QR PATROL ที่จุดตรวจทุกรอบ</small></b></button>' +
     (SITE.cars ? '<button type="button" class="b blue wide" onclick="formCar()"><span style="font-size:24px;line-height:1">🚗</span><b>ตรวจรถ<small>รถพนักงาน · รถบริษัท · สแกน QR บนบัตรจอดรถ</small></b></button>' : '') +
@@ -740,8 +740,8 @@ async function sendIncident() {
 }
 
 // ═══════════════ Routine (หน้าตา Routine Report เดิม) ═══════════════
-// v5.28a Patrol Log ย้ายไปปุ่ม Patrol ตรวจจุดเสี่ยง (สแกน QR) · ไม่มีใน Routine แล้ว
-const RT_TYPES = [['toilet', '🚻', 'ตรวจห้องน้ำ'], ['firedoor', '🚪', 'ประตูหนีไฟ'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];
+// v5.28a Patrol Log / ตรวจห้องน้ำ / ประตูหนีไฟ ย้ายไปปุ่ม Patrol ตรวจจุดเสี่ยง (สแกน QR ที่จุด) · Routine เหลือกุญแจ + อื่นๆ
+const RT_TYPES = [['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];
 let RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร'], ['ประตูหนีไฟ', 'ประตูหนีไฟ']];
 let RT_TOILETS = [['IB ชาย', '🚹'], ['IB หญิง', '🚺'], ['OB ชาย', '🚹'], ['OB หญิง', '🚺']];
 let RT = null;
