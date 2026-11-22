@@ -334,7 +334,7 @@ getLoc().then(loc => {
   if (P.so && !IN_GAS) { try { const u = new URL(location.href); u.searchParams.delete('so'); history.replaceState(null, '', u.toString()); } catch (e) {} }
   return Promise.all([run('gBoot', so), Promise.resolve(loc)]);
 }).then(([b, loc]) => {
-  B = b;
+  B = b; if (B && B.now) SRV_OFF = B.now - Date.now();
   // เข้าลิงก์ / สแกน QR → เริ่มที่หน้าเลือกพื้นที่ประจำการเสมอ (พื้นที่จาก QR หรือที่ใช้ล่าสุดขึ้นเป็นตัวแนะนำ)
   QR_SITE = (loc && loc.parameter && loc.parameter.site) || '';
   QR_POST = (loc && loc.parameter && loc.parameter.post) || '';
@@ -570,6 +570,43 @@ $('camIn').addEventListener('change', async e => {
   CI.photo = await shrink(f, 1280, 0.72);
   $('cam').innerHTML = '<img alt="รูปที่ถ่าย" src="' + CI.photo + '"><button type="button" class="retake">ถ่ายใหม่</button>';
 });
+// v5.18b ตราวันเวลาบนรูปลงเวลาเข้า-ออก · ใช้เวลาเซิร์ฟเวอร์ (แก้นาฬิกาเครื่องไม่มีผล) · พิมพ์ทับลงในรูป แก้ภายหลังไม่ได้
+let SRV_OFF = 0;
+function srvNow() { return new Date(Date.now() + SRV_OFF); }
+function ciStamp(d) {
+  return new Promise(ok => {
+    if (!d.photo) return ok();
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+        const W = c.width, s = Math.max(13, Math.round(W / 34)), pad = Math.round(s * 0.7), F = 'Prompt,"Noto Sans Thai","Sarabun",Tahoma,sans-serif';
+        const t = srvNow(), p2 = n => String(n).padStart(2, '0');
+        const L1 = t.getDate() + '/' + (t.getMonth() + 1) + '/' + (t.getFullYear() + 543) + '  ' + p2(t.getHours()) + ':' + p2(t.getMinutes()) + ':' + p2(t.getSeconds());
+        const L2 = SITE.code + (SITE.name && SITE.name !== SITE.code ? ' · ' + SITE.name : '') + ' · ลงเวลา' + (d.type === 'ออก' ? 'ออก' : 'เข้า') + ' · ' + d.first + ' ' + d.last;
+        const dd = dist(SITE, GPS);
+        const L3 = 'GPS ' + Number(d.lat).toFixed(4) + ', ' + Number(d.lng).toFixed(4) + (dd !== null ? ' · ในพื้นที่ ' + Math.round(dd) + ' ม.' : '') + (d.post ? ' · ' + d.post : '');
+        const L = [[L1, '700 ' + Math.round(s * 1.5) + 'px ' + F, '#fff', Math.round(s * 1.9)], [L2, '600 ' + s + 'px ' + F, '#fff', Math.round(s * 1.35)], [L3, '400 ' + Math.round(s * 0.85) + 'px ' + F, '#d6e4ee', Math.round(s * 1.2)]];
+        if (/^อัลบั้ม/.test(CI.src || '')) L.push(['⚠ รูปจากคลังภาพ · ' + CI.src.replace(/^อัลบั้ม\s*/, '').replace(/[()]/g, ''), '700 ' + Math.round(s * 0.9) + 'px ' + F, '#FFD24D', Math.round(s * 1.25)]);
+        const H = L.reduce((a, x) => a + x[3], 0) + pad * 1.6;
+        const gr = g.createLinearGradient(0, c.height - H * 1.5, 0, c.height); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.35, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,.78)');
+        g.fillStyle = gr; g.fillRect(0, c.height - H * 1.5, W, H * 1.5);
+        let y = c.height - H + pad; g.textBaseline = 'top'; g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 3;
+        L.forEach(x => { g.font = x[1]; g.fillStyle = x[2]; g.fillText(x[0], pad, y, W - pad * 2); y += x[3]; });
+        g.shadowBlur = 0; g.font = '700 ' + Math.round(s * 0.8) + 'px ' + F;
+        const tag = 'SEC OPS · ' + (d.type === 'ออก' ? 'CHK-OUT' : 'CHK-IN'), tw = g.measureText(tag).width, bx = W - tw - pad * 2.2;
+        g.fillStyle = d.type === 'ออก' ? 'rgba(194,65,12,.88)' : 'rgba(15,118,110,.88)';
+        if (g.roundRect) { g.beginPath(); g.roundRect(bx, pad, tw + pad * 1.4, s * 1.5, s * 0.4); g.fill(); } else g.fillRect(bx, pad, tw + pad * 1.4, s * 1.5);
+        g.fillStyle = '#fff'; g.fillText(tag, bx + pad * 0.7, pad + s * 0.3);
+        d.photo = c.toDataURL('image/jpeg', 0.78);
+      } catch (e) {}
+      ok();
+    };
+    img.onerror = () => ok();
+    img.src = d.photo;
+  });
+}
 function shrink(file, max, q) {
   return new Promise((ok, no) => {
     const img = new Image(), url = URL.createObjectURL(file);
@@ -601,7 +638,7 @@ function sendCheckin() {
   if (!d.photo) return showErr('⚠️ กรุณาถ่ายรูปยืนยัน');
   showErr(''); busy('กำลังบันทึก…');
   store.set('name', d.first + ' ' + d.last); store.set('pos', d.position); store.set('post_' + SITE.code, d.post); store.set('gid', d.guardId);
-  run('checkin', d).then(r => {
+  ciStamp(d).then(() => run('checkin', d)).then(r => {
     ov('<div class="overlay-icon">' + (r.type === 'เข้า' ? '🟢' : '🔴') + '</div><div class="overlay-title">บันทึก' + (r.type === 'เข้า' ? 'เข้างาน' : 'ออกงาน') + 'แล้ว</div>' +
       '<div class="overlay-big">' + esc(r.time) + ' น.</div><div class="overlay-sub">' + esc(r.name) + '<br>' + (r.shift ? esc(r.shift) + (r.type === 'เข้า' ? (r.late > 0 ? ' · ⚠️ สาย ' + r.late + ' นาที' : ' · ✅ ตรงเวลา') : '') : 'ไม่อยู่ในช่วงเวลากะ') +
       (r.point && r.multi ? '<br><span style="display:inline-block;margin-top:8px;background:#FDEBE3;color:#C2410C;border-radius:999px;padding:4px 12px;font-weight:700">📍 ' + esc(r.point) + ' · ' + esc(r.pointD) + ' ม.</span>' : '') +
