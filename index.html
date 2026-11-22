@@ -322,7 +322,7 @@ const stamp = d => ymd(d) + ' ' + hms(d);
 const ico = (id, cls) => '<svg class="svg ' + (cls || '') + '"><use href="#' + id + '"/></svg>';
 setInterval(() => { const d = new Date(); document.querySelectorAll('.lt').forEach(e => e.textContent = hms(d)); document.querySelectorAll('.lth').forEach(e => e.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes())); document.querySelectorAll('.ld').forEach(e => e.textContent = thDate(d)); }, 1000);
 
-let BL_ONLY = false, QR_SITE = '', QR_POST = '', QR_GO = '', B = null, SITE = null, CFG = null, GPS = { lat: null, lng: null, st: 'wait' };
+let BL_ONLY = false, QR_SITE = '', QR_POST = '', QR_PT = '', QR_GO = '', B = null, SITE = null, CFG = null, GPS = { lat: null, lng: null, st: 'wait' };
 const deviceId = (() => { let d = store.get('device'); if (!d) { d = 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); store.set('device', d); } return d; })();
 function theme(t) { document.body.className = t; window.scrollTo(0, 0); }
 
@@ -338,6 +338,7 @@ getLoc().then(loc => {
   // เข้าลิงก์ / สแกน QR → เริ่มที่หน้าเลือกพื้นที่ประจำการเสมอ (พื้นที่จาก QR หรือที่ใช้ล่าสุดขึ้นเป็นตัวแนะนำ)
   QR_SITE = (loc && loc.parameter && loc.parameter.site) || '';
   QR_POST = (loc && loc.parameter && loc.parameter.post) || '';
+  QR_PT = (loc && loc.parameter && loc.parameter.pt) || '';   // v5.28 QR Patrol
   QR_GO = (loc && loc.parameter && loc.parameter.go) || '';
   if (QR_GO === 'blonly') { BL_ONLY = true; QR_GO = 'bl'; }   // ลิงก์ตรวจ BlackList หน้าเดียว · ไม่มีปุ่มกลับหน้าแรก / เมนูอื่น   // ลิงก์ตรงเข้าฟอร์ม (จากหน้ารวมลิงก์) · ยังเริ่มที่หน้าเลือกพื้นที่ก่อน
   watchGPS();
@@ -439,7 +440,7 @@ function pickRefresh() {
 function openSite(code) {
   theme('t-hub');
   $('app').innerHTML = '<div class="loading"><div class="spinner" style="margin:0"></div>กำลังเปิด ' + esc(code) + '…</div>';
-  run('gSite', code).then(c => { CFG = c; SITE = c.site; applyOpts(c.opts); store.set('site', code); if (QR_POST && code === QR_SITE) { const p = QR_POST; QR_POST = ''; scanPage(p); return; } const go = { checkin: formCheckin, routine: formRoutine, bl: formBL, incident: formIncident, parcel: formParcel, voice: formVoice, car: SITE.cars ? formCar : null, phone: SITE.phone ? formPhone : null, gate: SITE.gate ? formGate : null }[QR_GO]; QR_GO = ''; if (go) go(); else home(); }).catch(e => { store.set('site', ''); fatal(errText(e)); });
+  run('gSite', code).then(c => { CFG = c; SITE = c.site; applyOpts(c.opts); store.set('site', code); if (QR_PT && code === QR_SITE) { const p = QR_PT; QR_PT = ''; QR_POST = ''; ptPage(p); return; } if (QR_POST && code === QR_SITE) { QR_POST = ''; ptOldQR(); return; } const go = { checkin: formCheckin, routine: formRoutine, bl: formBL, incident: formIncident, parcel: formParcel, voice: formVoice, car: SITE.cars ? formCar : null, phone: SITE.phone ? formPhone : null, gate: SITE.gate ? formGate : null }[QR_GO]; QR_GO = ''; if (go) go(); else home(); }).catch(e => { store.set('site', ''); fatal(errText(e)); });
 }
 
 function home() {
@@ -454,9 +455,9 @@ function home() {
   });
   h += '<div class="sec">ใช้ทุกกะ</div><div class="bento">' +
     '<button type="button" class="b big tall" onclick="formCheckin()"><div class="ic">' + ico('i-in') + '</div><b>ลงเวลา<br>เข้า-ออกงาน<small>เช็คอินประจำกะ</small></b></button>' +
-    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>เดินตรวจตามรอบ</small></b></button>' +
+    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>ห้องน้ำ · ประตูหนีไฟ · กุญแจ</small></b></button>' +
     '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>BlackList<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
-    '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>สแกนจุดตรวจ<small>สแกน QR ที่จุดทุกรอบที่เดินตรวจ</small></b></button>' +
+    '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>Patrol ตรวจจุดเสี่ยง<small>สแกน QR PATROL ที่จุดตรวจทุกรอบ</small></b></button>' +
     (SITE.cars ? '<button type="button" class="b blue wide" onclick="formCar()"><span style="font-size:24px;line-height:1">🚗</span><b>ตรวจรถ<small>รถพนักงาน · รถบริษัท · สแกน QR บนบัตรจอดรถ</small></b></button>' : '') +
     (SITE.gate ? '<button type="button" class="b slate wide" onclick="formGate()"><span style="font-size:24px;line-height:1">📦</span><b>ใบนำเข้า-นำออก<small>สแกน QR ใบผ่าน · ตรวจของ · ถ่ายรูป</small></b></button>' : '') +
     (SITE.phone ? '<button type="button" class="b slate wide" onclick="formPhone()"><span style="font-size:24px;line-height:1">📱</span><b>ตรวจโทรศัพท์<small>สแกน / พิมพ์ IMEI · บันทึกเข้า-ออก Body Check</small></b></button>' : '') + '</div>' +
@@ -696,7 +697,7 @@ $('flIn').addEventListener('change', e => {
   drawInPh();
 });
 let PH_MODE = 'in';
-function PH_TARGET() { if (PH_MODE === 'vo') return { list: VO.photos, max: 3, draw: voPh }; if (PH_MODE === 'rt') return { list: RT.photos, max: 30, draw: () => drawPh('rt_ph', RT.photos, 'rt') }; if (PH_MODE === 'pf') return { list: PF.photos, max: 30, draw: () => drawPh('pf_ph', PF.photos, 'pf') }; return { list: IN.photos, max: 10, draw: drawInPh }; }
+function PH_TARGET() { if (PH_MODE === 'pt') return { list: PT.photos, max: 6, draw: () => drawPh('pt_ph', PT.photos, 'pt') }; if (PH_MODE === 'vo') return { list: VO.photos, max: 3, draw: voPh }; if (PH_MODE === 'rt') return { list: RT.photos, max: 30, draw: () => drawPh('rt_ph', RT.photos, 'rt') }; if (PH_MODE === 'pf') return { list: PF.photos, max: 30, draw: () => drawPh('pf_ph', PF.photos, 'pf') }; return { list: IN.photos, max: 10, draw: drawInPh }; }
 function addPhoto(mode) { PH_MODE = mode; $('phIn').click(); }
 function drawPh(el, list, mode) {
   $(el).innerHTML = list.map((p, i) => '<div class="ph"><img alt="รูป ' + (i + 1) + '" src="' + p.data + '"><button type="button" aria-label="ลบรูป" onclick="delPh(\'' + mode + '\',' + i + ')">×</button></div>').join('') +
@@ -739,7 +740,8 @@ async function sendIncident() {
 }
 
 // ═══════════════ Routine (หน้าตา Routine Report เดิม) ═══════════════
-const RT_TYPES = [['patrol', '🚶', 'Patrol Log'], ['toilet', '🚻', 'ตรวจห้องน้ำ'], ['firedoor', '🚪', 'ประตูหนีไฟ'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];
+// v5.28a Patrol Log ย้ายไปปุ่ม Patrol ตรวจจุดเสี่ยง (สแกน QR) · ไม่มีใน Routine แล้ว
+const RT_TYPES = [['toilet', '🚻', 'ตรวจห้องน้ำ'], ['firedoor', '🚪', 'ประตูหนีไฟ'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];
 let RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร'], ['ประตูหนีไฟ', 'ประตูหนีไฟ']];
 let RT_TOILETS = [['IB ชาย', '🚹'], ['IB หญิง', '🚺'], ['OB ชาย', '🚹'], ['OB หญิง', '🚺']];
 let RT = null;
@@ -898,13 +900,14 @@ function loadZXing() {
   return zxLoading;
 }
 let SCAN_MODE = 'parcel';
-function scanPost() { SCAN_MODE = 'post'; openScan(null); $('scanMsg').textContent = 'ส่อง QR ที่ติดอยู่ที่จุดตรวจ'; }
+function scanPost() { SCAN_MODE = 'post'; openScan(null); $('scanMsg').textContent = 'ส่อง QR PATROL ที่ติดอยู่ที่จุดตรวจ'; }
 function gotPostQR(raw) {
   const g = k => { const m = String(raw).match(new RegExp('[?&]' + k + '=([^&#]*)')); return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''; };
-  const site = g('site'), post = g('post');
-  if (!post) { $('scanMsg').textContent = 'QR นี้ไม่ใช่ QR จุดตรวจ'; return; }
+  const site = g('site'), post = g('post'), pt = g('pt');
+  if (!pt && post) { $('scanMsg').textContent = 'QR จุด รปภ. แบบเดิม เลิกใช้แล้ว · สแกน QR ที่มีคำว่า PATROL'; return; }
+  if (!pt) { $('scanMsg').textContent = 'QR นี้ไม่ใช่ QR Patrol'; return; }
   if (site && site !== SITE.code) { $('scanMsg').textContent = 'QR นี้เป็นของพื้นที่ ' + site + ' (ตอนนี้อยู่ ' + SITE.code + ')'; return; }
-  closeScan(); scanPage(post);
+  closeScan(); ptPage(pt);
 }
 function gotCode(code) {
   if (SCAN_MODE === 'post') return gotPostQR(code);
@@ -1040,7 +1043,59 @@ function closeScan() {
   $('scanner').classList.remove('show', 'photo');
 }
 
-// ═══════════════ สแกนจุดตรวจ ═══════════════
+// ═══════════════ v5.28 Patrol จุดเสี่ยง (สแกน QR ที่จุดตรวจ) ═══════════════
+let PT = null;
+const PT_LVC = { 'สูง': '#b42318', 'กลาง': '#b7791f', 'ต่ำ': '#1f7a45' };
+function ptPage(id) {
+  theme('t-or');
+  const hd = formHead('QR', 'Patrol ตรวจจุดเสี่ยง', 'Patrol · SPX Security');
+  $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(id) + '…</div></div></div>';
+  run('gPatrolInfo', SITE.code, id).then(p => {
+    PT = { p: p, res: '', ok: p.checks.map(() => true), photos: [] };
+    $('app').innerHTML = hd + '<div class="fmain">' + tsBox(stamp(new Date())) + '<div class="gpsb"></div>' +
+      '<div class="section"><div class="slabel">📍 ' + esc(p.name) + ' <span class="cnt" style="background:' + (PT_LVC[p.level] || '#555') + ';color:#fff">เสี่ยง' + esc(p.level) + '</span></div>' +
+      '<div class="hint">' + esc(p.id) + (p.zname ? ' · โซน ' + esc(p.zname) : '') + ' · ' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + '</div>' +
+      '<div class="hint">' + (p.last ? 'ตรวจล่าสุด ' + esc(p.last.at.slice(5)) + ' · ' + esc(p.last.name) + (p.last.res === 'ผิดปกติ' ? ' · <b style="color:#6d4fc2">ผิดปกติ</b>' : '') : 'ยังไม่เคยตรวจ') + (p.next ? ' · รอบถัดไป ' + esc(p.next) + ' น.' : '') + '</div></div>' +
+      (p.checks.length ? '<div class="section"><div class="slabel">✅ สิ่งที่ต้องตรวจ <span class="cnt">ติ๊กออก = ไม่ผ่าน</span></div><div class="check-list">' + p.checks.map((c, i) => '<button type="button" class="check-item on" id="ptc' + i + '" onclick="ptTog(' + i + ')"><span class="check-box">✓</span><span>' + esc(c) + '</span></button>').join('') + '</div></div>' : '') +
+      '<div class="section"><div class="slabel">📋 ผลการตรวจ *</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+        '<button type="button" class="check-item" id="pt_ok" onclick="ptRes(\'ปกติ\')" style="justify-content:center;font-weight:700">✅ ปกติ</button>' +
+        '<button type="button" class="check-item" id="pt_bad" onclick="ptRes(\'ผิดปกติ\')" style="justify-content:center;font-weight:700">⚠️ พบสิ่งผิดปกติ</button></div>' +
+      '<div id="pt_badBox" style="display:none;margin-top:10px"><div class="hint" style="color:#b42318">ระบบจะแจ้ง Seatalk ถึง Sec Ops ทันที</div>' +
+        '<div class="field"><textarea id="pt_note" rows="3" maxlength="1000" placeholder="พบอะไร ตรงไหน ทำอะไรไปแล้ว"></textarea></div>' +
+        '<div class="slabel" style="margin-top:8px">📷 รูป (ไม่เกิน 6)</div><div class="photos" id="pt_ph"></div></div></div>' +
+      '<div class="section"><div class="slabel">👤 ผู้ตรวจ</div><div class="field"><input id="pt_n" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div></div>' +
+      '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="sendPatrol()">บันทึกการตรวจ</button>' +
+      '<button type="button" class="add-btn" style="margin-top:10px" onclick="scanPost()">📷 สแกนจุดถัดไป</button>' + backHome() + '</div>';
+    drawPh('pt_ph', PT.photos, 'pt'); gpsUI();
+  }).catch(e => { $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div><button type="button" class="add-btn" onclick="scanPost()">📷 สแกนใหม่</button>' + backHome() + '</div>'; });
+}
+function ptTog(i) { PT.ok[i] = !PT.ok[i]; $('ptc' + i).classList.toggle('on', PT.ok[i]); if (!PT.ok[i]) ptRes('ผิดปกติ'); }
+function ptRes(r) {
+  PT.res = r; $('pt_ok').classList.toggle('on', r === 'ปกติ'); $('pt_bad').classList.toggle('on', r === 'ผิดปกติ');
+  $('pt_badBox').style.display = r === 'ผิดปกติ' ? 'block' : 'none';
+  if (r === 'ปกติ' && PT.ok.some(x => !x)) { PT.ok = PT.ok.map(() => true); PT.p.checks.forEach((c, i) => $('ptc' + i).classList.add('on')); }
+}
+async function sendPatrol() {
+  const name = $('pt_n').value.trim(), p = PT.p;
+  if (!PT.res) return showErr('⚠️ กรุณาเลือกผลการตรวจ: ปกติ / พบสิ่งผิดปกติ');
+  if (!name) return showErr('⚠️ กรุณาใส่ชื่อผู้ตรวจ');
+  const bad = PT.res === 'ผิดปกติ', note = bad ? $('pt_note').value.trim() : '';
+  if (bad && !note && !PT.ok.some(x => !x)) return showErr('⚠️ พบสิ่งผิดปกติ: ติ๊กข้อที่ไม่ผ่าน หรือเขียนรายละเอียด');
+  store.set('name', name); showErr(''); busy(bad ? 'กำลังแจ้งเหตุ…' : 'กำลังบันทึก…');
+  try {
+    const files = bad && PT.photos.length ? await uploadAll(PT.photos.map((x, i) => ({ name: 'patrol_' + (i + 1) + '.jpg', get: () => Promise.resolve(x.data) })), 'patrol') : [];
+    const r = await run('recordPatrol', { site: SITE.code, id: p.id, name: name, res: PT.res, checks: p.checks.map((t, i) => ({ t: t, ok: PT.ok[i] })), note: note, lat: GPS.lat, lng: GPS.lng, files: files });
+    ov('<div class="overlay-icon">' + (bad ? '🚨' : '✅') + '</div><div class="overlay-title">' + (bad ? 'แจ้งสิ่งผิดปกติแล้ว' : 'ตรวจจุดแล้ว') + '</div><div class="overlay-big">' + esc(p.name) + '</div>' +
+      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึง Sec Ops แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + (r.flag ? '<br><b style="color:#b42318">⚠️ ' + esc(r.flag) + '</b>' : '') + '</div>' +
+      '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
+  } catch (e) { showErr('⚠️ ' + errText(e)); }
+}
+function ptOldQR() {
+  theme('t-or');
+  $('app').innerHTML = formHead('QR', 'Patrol ตรวจจุดเสี่ยง', 'Patrol · SPX Security') + '<div class="fmain"><div class="section"><div class="slabel">ℹ️ QR นี้เป็น QR จุด รปภ. แบบเดิม</div><div class="hint">เลิกใช้สแกนแล้ว · ให้สแกน QR ที่มีคำว่า <b>PATROL</b> ที่จุดตรวจแทน (แจ้ง Sec Ops ถ้ายังไม่มี)</div></div>' +
+    '<button type="button" class="add-btn" onclick="scanPost()">📷 สแกน QR Patrol</button>' + backHome() + '</div>';
+}
+// ═══════════════ สแกนจุดตรวจ (เดิม · เลิกใช้ v5.28) ═══════════════
 function scanPage(post) {
   theme('t-or');
   $('app').innerHTML = formHead('QR', 'สแกนจุดตรวจ', 'Checkpoint · SPX Security') + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(post) + '…</div></div></div>';
