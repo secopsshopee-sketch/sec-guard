@@ -392,7 +392,8 @@ function showErr(t) { ovClose(); const e = $('err'); if (!e) return alert(t); e.
 // ═══════════════ เลือกพื้นที่ / หน้าแรก ═══════════════
 // v4.93 หน้าเลือกพื้นที่: แสดงเฉพาะพื้นที่ที่อยู่ในรัศมีจาก GPS (นอกระยะ = ไม่เห็นชื่อพื้นที่)
 //  พื้นที่ที่ยังไม่ได้ตั้งพิกัด → แสดงแยก (ตรวจระยะไม่ได้) · ปิด GPS → ไม่แสดงพื้นที่ ต้องเปิด GPS ก่อน
-let PICK_SIG = '';
+let PICK_SIG = '', AUTO_DONE = false;   // v5.29a โหลดหน้าใหม่ → เข้าพื้นที่เดิมให้เลย (ถ้ายังอยู่ในระยะ GPS และเข้าไว้ไม่เกิน 14 ชม.)
+const AUTO_H = 14;
 function nearSites() {
   const tol = Math.min(Number(GPS.acc) || 0, 200);
   return B.sites.map(s => ({ s: s, d: dist(s, GPS) })).filter(x => x.d !== null && x.d <= x.s.radius + tol).sort((a, b) => a.d - b.d);
@@ -423,6 +424,7 @@ function pickSite() {
     }
     const near = nearSites(), qr = near.find(x => x.s.code === QR_SITE), last = near.find(x => x.s.code === store.get('site'));
     const first = qr || near[0];
+    if (!AUTO_DONE && last && (!QR_SITE || QR_SITE === last.s.code) && Date.now() - (Number(store.get('siteAt')) || 0) < AUTO_H * 3600000) { AUTO_DONE = true; openSite(last.s.code); return; }
     sig = 'ok-' + near.map(x => x.s.code).join(',');
     if (near.length) {
       h += '<div class="sec">พื้นที่ของคุณ · ' + esc(qr ? 'จาก QR ที่สแกน' : 'ใกล้ที่สุดจาก GPS') + ' · ' + Math.round(first.d) + ' ม.</div>' +
@@ -448,7 +450,7 @@ function pickRefresh() {
 function openSite(code) {
   theme('t-hub');
   $('app').innerHTML = '<div class="loading"><div class="spinner" style="margin:0"></div>กำลังเปิด ' + esc(code) + '…</div>';
-  run('gSite', code).then(c => { CFG = c; SITE = c.site; applyOpts(c.opts); store.set('site', code); if (QR_PT && code === QR_SITE) { const p = QR_PT; QR_PT = ''; QR_POST = ''; ptPage(p); return; } if (QR_POST && code === QR_SITE) { QR_POST = ''; ptOldQR(); return; } const go = { checkin: formCheckin, routine: formRoutine, bl: formBL, incident: formIncident, parcel: formParcel, voice: formVoice, car: SITE.cars ? formCar : null, phone: SITE.phone ? formPhone : null, gate: SITE.gate ? formGate : null }[QR_GO]; QR_GO = ''; if (go) go(); else home(); }).catch(e => { store.set('site', ''); fatal(errText(e)); });
+  run('gSite', code).then(c => { CFG = c; SITE = c.site; applyOpts(c.opts); store.set('site', code); store.set('siteAt', String(Date.now())); AUTO_DONE = true; if (QR_PT && code === QR_SITE) { const p = QR_PT; QR_PT = ''; QR_POST = ''; ptPage(p); return; } if (QR_POST && code === QR_SITE) { QR_POST = ''; ptOldQR(); return; } const go = { checkin: formCheckin, routine: formRoutine, bl: formBL, incident: formIncident, parcel: formParcel, voice: formVoice, car: SITE.cars ? formCar : null, phone: SITE.phone ? formPhone : null, gate: SITE.gate ? formGate : null }[QR_GO]; QR_GO = ''; if (go) go(); else home(); }).catch(e => { store.set('site', ''); fatal(errText(e)); });
 }
 
 function home() {
