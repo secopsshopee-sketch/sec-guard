@@ -306,12 +306,13 @@ const SEC_API = window.SEC_API_URL || (((document.querySelector('meta[name="sec-
 const IN_GAS = !!(window.google && google.script && google.script.run);
 // v5.28c ระบบไม่ตอบเกินเวลา → ขึ้นข้อความ + ปุ่มลองใหม่ (เดิมหมุนค้างตลอด) · อัปโหลดรูปให้นานกว่า
 function fetchT_(fn, opt) {
-  const ms = /^upload/i.test(fn) ? 120000 : 40000, ac = window.AbortController ? new AbortController() : null;
+  // v5.29b รอนานตามงาน: เปิดหน้า / ข้อมูลจุด 40 วิ · อัปโหลดรูป 2 นาที · ส่งรายงาน (ย้ายรูปหลายรูป) 5.5 นาที
+  const ms = /^upload/i.test(fn) ? 120000 : /^(gBoot|gSite|gScanInfo|gPatrolInfo)$/.test(fn) ? 40000 : 330000, ac = window.AbortController ? new AbortController() : null;
   const t = ac ? setTimeout(() => ac.abort(), ms) : 0;
   return fetch(SEC_API, Object.assign({}, opt, ac ? { signal: ac.signal } : {})).finally(() => clearTimeout(t))
     .catch(e => { if (e && e.name === 'AbortError') throw new Error('ระบบตอบช้าเกิน ' + Math.round(ms / 1000) + ' วินาที · ลองใหม่อีกครั้ง (ถ้ายังไม่ได้ แจ้ง Sec Ops)'); throw e; });
 }
-const run = (fn, ...a) => IN_GAS
+const run0_ = (fn, ...a) => IN_GAS
   ? new Promise((ok, no) => google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a))
   : (SEC_API ? fetchT_(fn, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: a }) })
       .then(r => r.text()).then(t => { let o; try { o = JSON.parse(t); } catch (e) { throw new Error('ระบบไม่ตอบ (ตรวจลิงก์ SEC_API / Deploy แอป รปภ. เป็น New version)'); } if (!o.ok) throw new Error(o.err); return o.v; })
@@ -487,7 +488,15 @@ function ack(id) {
 }
 
 // ═══ หัวฟอร์ม (ส้ม/ฟ้า) ═══
+// v5.29b รหัสคำขอต่อ 1 ฟอร์ม: กดส่งซ้ำหลังหมดเวลา → ระบบรู้ว่าเป็นรายการเดิม ไม่บันทึกซ้ำ
+let FORM_RK = '';
+const UP_CACHE = new Map();
+function rkNew_() { FORM_RK = Date.now().toString(36) + Math.random().toString(36).slice(2, 10); UP_CACHE.clear(); }
+function rkTag_(fn, a) { if (/^(saveRoutine|reportIncident|saveParcel|submitVoice|recordPatrol)$/.test(fn) && a[0] && typeof a[0] === 'object' && !Array.isArray(a[0]) && !a[0].rk) { if (!FORM_RK) rkNew_(); a[0].rk = FORM_RK; return true; } return false; }
+// ส่งสำเร็จแล้ว → รายการถัดไปได้รหัสใหม่
+function run(fn, ...a) { const t = rkTag_(fn, a), p = run0_(fn, ...a); return t ? p.then(v => { FORM_RK = ''; return v; }) : p; }
 function formHead(badge, title, sub) {
+  rkNew_();
   const d = new Date();
   return '<div class="header"><button type="button" class="hicon" onclick="home()" aria-label="กลับหน้าแรก">' + badge + '</button><div><div class="htitle">' + title + '</div><div class="hsub">' + sub + '</div></div>' +
     '<div class="hclock"><div class="ht lt">' + hms(d) + '</div><div class="hd ld">' + thDate(d) + '</div></div></div>';
@@ -724,7 +733,9 @@ async function uploadAll(items, kind) {
   const ids = [];
   for (let i = 0; i < items.length; i++) {
     busyT('กำลังอัปโหลด ' + (i + 1) + '/' + items.length + '…', Math.round(i / items.length * 100));
-    const r = await run('uploadPending', await items[i].get(), items[i].name, SITE.code, kind);
+    const data = await items[i].get(), key = kind + '|' + String(data).length + '|' + String(data).slice(-80);
+    let r = UP_CACHE.get(key);   // v5.29b กดส่งซ้ำ → ไม่ต้องอัปโหลดรูปเดิมใหม่
+    if (!r) { r = await run('uploadPending', data, items[i].name, SITE.code, kind); UP_CACHE.set(key, r); }
     ids.push({ id: r.id, mime: r.mime, name: items[i].name });
   }
   busyT('กำลังส่งรายงาน…', 100);
