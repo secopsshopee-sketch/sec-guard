@@ -1075,13 +1075,12 @@ function ptPage(id) {
   $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(id) + '…</div></div></div>';
   run('gPatrolInfo', SITE.code, id).then(p => {
     PT = { p: p, res: '', ok: p.checks.map(() => null), photos: [] };   // v5.29c ต้องกดทุกข้อ ✅ / ❌
-    $('app').innerHTML = hd + '<div class="fmain">' + tsBox(stamp(new Date())) + '<div class="gpsb"></div>' +
+    $('app').innerHTML = hd + '<div class="fmain">' + tsBox(stamp(new Date())) +
       '<div class="section"><div class="slabel">📍 ' + esc(p.name) + ' <span class="cnt" style="background:' + (PT_LVC[p.level] || '#555') + ';color:#fff">เสี่ยง' + esc(p.level) + '</span></div>' +
       '<div class="hint">' + esc(p.id) + (p.zname ? ' · โซน ' + esc(p.zname) : '') + ' · ' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + '</div>' +
       '<div class="hint">' + (p.last ? 'ตรวจล่าสุด ' + esc(p.last.at.slice(5)) + ' · ' + esc(p.last.name) + (p.last.res === 'ผิดปกติ' ? ' · <b style="color:#6d4fc2">ผิดปกติ</b>' : '') : 'ยังไม่เคยตรวจ') + (p.next ? ' · รอบถัดไป ' + esc(p.next) + ' น.' : '') + '</div>' +
       (p.hours ? '<div class="hint">🕘 เวลา Patrol ของพื้นที่: ' + esc(p.hours) + (p.off ? ' · <b>ตอนนี้นอกเวลา Patrol</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') +
       (p.shifts && p.shifts.length ? '<div class="hint">🕘 ตรวจเฉพาะกะ: ' + esc(p.shifts.join(', ')) + (p.notShift ? ' · <b>กะนี้ไม่ต้องตรวจจุดนี้</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') + '</div>' +
-      '<div class="section" id="pt_dist"></div>' +
       (p.checks.length ? '<div class="section"><div class="slabel">✅ สิ่งที่ต้องตรวจ * <span class="cnt">กดให้ครบทุกข้อ</span></div>' + p.checks.map((c, i) => '<div class="ptck" id="ptc' + i + '"><div class="ptck-t">' + (i + 1) + '. ' + esc(c) + '</div><div class="ptck-b"><button type="button" class="check-item" id="ptc' + i + 'y" onclick="ptMark(' + i + ',true)">✅ ปกติ</button><button type="button" class="check-item" id="ptc' + i + 'n" onclick="ptMark(' + i + ',false)">❌ ไม่ปกติ</button></div></div>').join('') + '</div>' : '') +
       '<div class="section"><div class="slabel">📷 ถ่ายรูปที่จุด * <span class="cnt">อย่างน้อย 1 รูป · ถ่ายจากกล้องเท่านั้น</span></div><div class="photos" id="pt_ph"></div><div class="hint">รูปจะมีวันเวลา · จุด · พื้นที่ ประทับในรูป</div></div>' +
       '<div class="section"><div class="slabel">📋 ผลการตรวจ *</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
@@ -1092,27 +1091,8 @@ function ptPage(id) {
       '<div class="section"><div class="slabel">👤 ผู้ตรวจ</div><div class="field"><input id="pt_n" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div></div>' +
       '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="sendPatrol()">บันทึกการตรวจ</button>' +
       '<button type="button" class="add-btn" style="margin-top:10px" onclick="scanPost()">📷 สแกนจุดถัดไป</button>' + backHome() + '</div>';
-    ptPhDraw(); gpsUI(); ptDist(); clearInterval(PT_TMR); PT_TMR = setInterval(() => { if (!$('pt_dist')) { clearInterval(PT_TMR); return; } ptDist(); }, 2000);
+    ptPhDraw();   // v5.29d ไม่ต้องใช้ GPS (ถ้ามีจะประทับในรูป)
   }).catch(e => { $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div><button type="button" class="add-btn" onclick="scanPost()">📷 สแกนใหม่</button>' + backHome() + '</div>'; });
-}
-// v5.28d ระยะจากจุด (สด) · ต้องไม่เกิน p.radius เมตร
-function ptDist() {
-  const el = $('pt_dist'); if (!el || !PT) return; const p = PT.p;
-  let h = '';
-  if (!p.lat) h = '<div class="slabel">📍 จุดนี้ยังไม่มีพิกัด</div><div class="hint">บันทึกได้ตามปกติ' + (B && B.so ? ' · Sec Ops: ยืนตรงจุดแล้วกดปุ่มด้านล่างเพื่อตั้งพิกัด' : ' · แจ้ง Sec Ops ให้ตั้งพิกัดจุดนี้') + '</div>';
-  else if (GPS.st !== 'ok' || !GPS.lat) h = '<div class="slabel">📍 กำลังหาตำแหน่ง…</div><div class="hint">ใช้ประกอบเท่านั้น · ไม่ต้องรอ GPS ก็บันทึกได้</div>';
-  else {
-    const d = Math.round(dist0({ lat: p.lat, lng: p.lng }, { lat: GPS.lat, lng: GPS.lng })), ok = d <= p.radius;
-    h = '<div class="slabel" style="color:' + (ok ? '#1f7a45' : '#8a5a00') + '">📍 ห่างจากจุด ' + d + ' ม. ' + (ok ? '✅' : '') + '</div><div class="hint">ข้อมูลประกอบ · ควรไม่เกิน ' + p.radius + ' ม.' + (GPS.acc ? ' · GPS คลาด ±' + Math.round(GPS.acc) + ' ม.' : '') + (ok ? '' : ' · บันทึกได้ (เก็บระยะไว้ให้ Sec Ops ดู)') + '</div>';
-  }
-  if (B && B.so) h += '<button type="button" class="add-btn" style="margin-top:8px" id="pt_setloc" onclick="ptSetLoc()">📍 บันทึกพิกัดจุดนี้ (ยืนตรงจุด · Sec Ops)</button>';
-  el.innerHTML = h;
-}
-function ptSetLoc() {
-  if (GPS.st !== 'ok' || !GPS.lat) return showErr('⚠️ ยังจับตำแหน่งไม่ได้ · รอสักครู่');
-  $('pt_setloc').disabled = true;
-  run('gPtSetLoc', SO_TOK, SITE.code, PT.p.id, GPS.lat, GPS.lng, GPS.acc).then(r => { PT.p.lat = GPS.lat; PT.p.lng = GPS.lng; ptDist(); showErr(''); ov('<div class="overlay-icon">📍</div><div class="overlay-title">บันทึกพิกัดแล้ว</div><div class="overlay-sub">' + esc(PT.p.name) + '<br>GPS คลาด ±' + r.acc + ' ม.</div><button class="overlay-btn" onclick="ovClose()">ตกลง</button>'); })
-    .catch(e => { showErr('⚠️ ' + errText(e)); if ($('pt_setloc')) $('pt_setloc').disabled = false; });
 }
 function ptMark(i, v) {
   PT.ok[i] = v; $('ptc' + i + 'y').classList.toggle('on', v === true); $('ptc' + i + 'n').classList.toggle('on', v === false); $('ptc' + i + 'n').classList.toggle('n', v === false);
@@ -1164,7 +1144,7 @@ async function sendPatrol() {
     const files = await uploadAll(PT.photos.slice(0, bad ? 6 : 3).map((x, i) => ({ name: 'patrol_' + (i + 1) + '.jpg', get: () => Promise.resolve(x.data) })), 'patrol');
     const r = await run('recordPatrol', { site: SITE.code, id: p.id, name: name, res: PT.res, checks: p.checks.map((t, i) => ({ t: t, ok: PT.ok[i] })), note: note, lat: GPS.lat, lng: GPS.lng, acc: GPS.acc, files: files });
     ov('<div class="overlay-icon">' + (bad ? '🚨' : '✅') + '</div><div class="overlay-title">' + (bad ? 'แจ้งสิ่งผิดปกติแล้ว' : 'ตรวจจุดแล้ว') + '</div><div class="overlay-big">' + esc(p.name) + '</div>' +
-      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' + (r.dist !== '' && r.dist !== undefined ? '<br>📍 ห่างจากจุด ' + r.dist + ' ม.' : '') + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึง Sec Ops แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุป Patrol รายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
+      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' +  + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึง Sec Ops แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุป Patrol รายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
       '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
 }
