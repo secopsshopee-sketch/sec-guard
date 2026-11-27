@@ -466,7 +466,7 @@ function home() {
   });
   h += '<div class="sec">ใช้ทุกกะ</div><div class="bento">' +
     '<button type="button" class="b big tall" onclick="formCheckin()"><div class="ic">' + ico('i-in') + '</div><b>ลงเวลา<br>เข้า-ออกงาน<small>เช็คอินประจำกะ</small></b></button>' +
-    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>รับ-ส่งกุญแจ · อื่นๆ</small></b></button>' +
+    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>Patrol Log · กุญแจ · อื่นๆ</small></b></button>' +
     '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>BlackList<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
     '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>Patrol ตรวจจุดเสี่ยง<small>สแกน QR PATROL ที่จุดตรวจทุกรอบ</small></b></button>' +
     (SITE.cars ? '<button type="button" class="b blue wide" onclick="formCar()"><span style="font-size:24px;line-height:1">🚗</span><b>ตรวจรถ<small>รถพนักงาน · รถบริษัท · สแกน QR บนบัตรจอดรถ</small></b></button>' : '') +
@@ -762,8 +762,8 @@ async function sendIncident() {
 
 // ═══════════════ Routine (หน้าตา Routine Report เดิม) ═══════════════
 // v5.28a Patrol Log / ตรวจห้องน้ำ / ประตูหนีไฟ ย้ายไปปุ่ม Patrol ตรวจจุดเสี่ยง (สแกน QR ที่จุด) · Routine เหลือกุญแจ + อื่นๆ
-const RT_TYPES = [['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];
-let RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร'], ['ประตูหนีไฟ', 'ประตูหนีไฟ']];
+const RT_TYPES = [['patrol', '🚶', 'Patrol Log'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];   // v5.29c เอา Patrol Log กลับมา
+let RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร']];   // v5.29c ประตูหนีไฟ ตรวจที่ Patrol จุดเสี่ยง
 let RT_TOILETS = [['IB ชาย', '🚹'], ['IB หญิง', '🚺'], ['OB ชาย', '🚹'], ['OB หญิง', '🚺']];
 let RT = null;
 function formRoutine() {
@@ -838,7 +838,7 @@ let PF_COND = [['ดี', '✅'], ['เสียหาย', '⚠️'], ['แก�
 function applyOpts(o) {
   if (!o) return;
   const keep = (L, cur, d) => (L && L.length) ? L.map(v => [v, (cur.find(x => x[0] === v) || [v, typeof d === 'function' ? d(v) : d])[1]]) : cur;
-  RT_POINTS = keep(o.patrol, RT_POINTS, v => v);
+  RT_POINTS = keep((o.patrol || []).filter(v => !/ประตูหนีไฟ/.test(v)), RT_POINTS, v => v);
   RT_TOILETS = keep(o.toilets, RT_TOILETS, v => /หญิง/.test(v) ? '🚺' : (/ชาย/.test(v) ? '🚹' : '🚻'));
   PF_COND = keep(o.parcelCond, PF_COND, '📦');
   if (o.parcelSteps && o.parcelSteps.length) PF_STEPS = o.parcelSteps.slice();
