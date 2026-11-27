@@ -193,6 +193,7 @@ body.t-or .field input:focus,body.t-or .field select:focus,body.t-or .field text
 .pchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
 .pchip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface2);color:var(--muted);font-size:14px;cursor:pointer}
 .pchip.on{border-color:var(--accent);background:var(--accent-dim);color:var(--text);font-weight:600}
+/* v5.29c */.ptck{padding:8px 0;border-top:1px solid #f1e4de}.ptck:first-of-type{border-top:0}.ptck-t{font-size:14px;margin-bottom:6px}.ptck-b{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ptck-b .check-item{justify-content:center;padding:9px}.ptck-b .on.n{background:#fdecea;border-color:#b42318;color:#b42318}
 .check-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
 .check-item{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13.5px;text-align:left;width:100%}
 .check-box{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border);background:#fff;flex-shrink:0;display:grid;place-items:center;font-size:13px;color:transparent}
@@ -292,6 +293,7 @@ body.t-pf .submit-btn{box-shadow:0 8px 20px rgba(14,165,233,.3)}
 <input type="file" id="scanPhoto" accept="image/*" capture="environment" style="display:none" onchange="scanPhotoGot(this)">
 <input type="file" id="camIn" accept="image/*" capture="user" style="display:none">
 <input type="file" id="phIn" accept="image/*" multiple style="display:none">
+<input type="file" id="ptCam" accept="image/*" capture="environment" style="display:none"><!-- v5.29c Patrol: ถ่ายจากกล้องเท่านั้น -->
 <input type="file" id="carIn" accept="image/*" capture="environment" style="display:none">
 <input type="file" id="voClip" accept="video/*" multiple style="display:none">
 <input type="file" id="flIn" accept="video/*,application/pdf" multiple style="display:none">
@@ -716,7 +718,7 @@ $('flIn').addEventListener('change', e => {
   drawInPh();
 });
 let PH_MODE = 'in';
-function PH_TARGET() { if (PH_MODE === 'pt') return { list: PT.photos, max: 6, draw: () => drawPh('pt_ph', PT.photos, 'pt') }; if (PH_MODE === 'vo') return { list: VO.photos, max: 3, draw: voPh }; if (PH_MODE === 'rt') return { list: RT.photos, max: 30, draw: () => drawPh('rt_ph', RT.photos, 'rt') }; if (PH_MODE === 'pf') return { list: PF.photos, max: 30, draw: () => drawPh('pf_ph', PF.photos, 'pf') }; return { list: IN.photos, max: 10, draw: drawInPh }; }
+function PH_TARGET() { if (PH_MODE === 'pt') return { list: PT.photos, max: 6, draw: ptPhDraw }; if (PH_MODE === 'vo') return { list: VO.photos, max: 3, draw: voPh }; if (PH_MODE === 'rt') return { list: RT.photos, max: 30, draw: () => drawPh('rt_ph', RT.photos, 'rt') }; if (PH_MODE === 'pf') return { list: PF.photos, max: 30, draw: () => drawPh('pf_ph', PF.photos, 'pf') }; return { list: IN.photos, max: 10, draw: drawInPh }; }
 function addPhoto(mode) { PH_MODE = mode; $('phIn').click(); }
 function drawPh(el, list, mode) {
   $(el).innerHTML = list.map((p, i) => '<div class="ph"><img alt="รูป ' + (i + 1) + '" src="' + p.data + '"><button type="button" aria-label="ลบรูป" onclick="delPh(\'' + mode + '\',' + i + ')">×</button></div>').join('') +
@@ -1072,7 +1074,7 @@ function ptPage(id) {
   const hd = formHead('QR', 'Patrol ตรวจจุดเสี่ยง', 'Patrol · SPX Security');
   $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(id) + '…</div></div></div>';
   run('gPatrolInfo', SITE.code, id).then(p => {
-    PT = { p: p, res: '', ok: p.checks.map(() => true), photos: [] };
+    PT = { p: p, res: '', ok: p.checks.map(() => null), photos: [] };   // v5.29c ต้องกดทุกข้อ ✅ / ❌
     $('app').innerHTML = hd + '<div class="fmain">' + tsBox(stamp(new Date())) + '<div class="gpsb"></div>' +
       '<div class="section"><div class="slabel">📍 ' + esc(p.name) + ' <span class="cnt" style="background:' + (PT_LVC[p.level] || '#555') + ';color:#fff">เสี่ยง' + esc(p.level) + '</span></div>' +
       '<div class="hint">' + esc(p.id) + (p.zname ? ' · โซน ' + esc(p.zname) : '') + ' · ' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + '</div>' +
@@ -1080,17 +1082,17 @@ function ptPage(id) {
       (p.hours ? '<div class="hint">🕘 เวลา Patrol ของพื้นที่: ' + esc(p.hours) + (p.off ? ' · <b>ตอนนี้นอกเวลา Patrol</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') +
       (p.shifts && p.shifts.length ? '<div class="hint">🕘 ตรวจเฉพาะกะ: ' + esc(p.shifts.join(', ')) + (p.notShift ? ' · <b>กะนี้ไม่ต้องตรวจจุดนี้</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') + '</div>' +
       '<div class="section" id="pt_dist"></div>' +
-      (p.checks.length ? '<div class="section"><div class="slabel">✅ สิ่งที่ต้องตรวจ <span class="cnt">ติ๊กออก = ไม่ผ่าน</span></div><div class="check-list">' + p.checks.map((c, i) => '<button type="button" class="check-item on" id="ptc' + i + '" onclick="ptTog(' + i + ')"><span class="check-box">✓</span><span>' + esc(c) + '</span></button>').join('') + '</div></div>' : '') +
+      (p.checks.length ? '<div class="section"><div class="slabel">✅ สิ่งที่ต้องตรวจ * <span class="cnt">กดให้ครบทุกข้อ</span></div>' + p.checks.map((c, i) => '<div class="ptck" id="ptc' + i + '"><div class="ptck-t">' + (i + 1) + '. ' + esc(c) + '</div><div class="ptck-b"><button type="button" class="check-item" id="ptc' + i + 'y" onclick="ptMark(' + i + ',true)">✅ ปกติ</button><button type="button" class="check-item" id="ptc' + i + 'n" onclick="ptMark(' + i + ',false)">❌ ไม่ปกติ</button></div></div>').join('') + '</div>' : '') +
+      '<div class="section"><div class="slabel">📷 ถ่ายรูปที่จุด * <span class="cnt">อย่างน้อย 1 รูป · ถ่ายจากกล้องเท่านั้น</span></div><div class="photos" id="pt_ph"></div><div class="hint">รูปจะมีวันเวลา · จุด · พื้นที่ ประทับในรูป</div></div>' +
       '<div class="section"><div class="slabel">📋 ผลการตรวจ *</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
         '<button type="button" class="check-item" id="pt_ok" onclick="ptRes(\'ปกติ\')" style="justify-content:center;font-weight:700">✅ ปกติ</button>' +
         '<button type="button" class="check-item" id="pt_bad" onclick="ptRes(\'ผิดปกติ\')" style="justify-content:center;font-weight:700">⚠️ พบสิ่งผิดปกติ</button></div>' +
-      '<div id="pt_badBox" style="display:none;margin-top:10px"><div class="hint" style="color:#b42318">ระบบจะแจ้ง Seatalk ถึง Sec Ops ทันที</div>' +
-        '<div class="field"><textarea id="pt_note" rows="3" maxlength="1000" placeholder="พบอะไร ตรงไหน ทำอะไรไปแล้ว"></textarea></div>' +
-        '<div class="slabel" style="margin-top:8px">📷 รูป (ไม่เกิน 6)</div><div class="photos" id="pt_ph"></div></div></div>' +
+      '<div id="pt_badBox" style="display:none;margin-top:10px"><div class="hint" style="color:#b42318">ระบบจะแจ้ง Seatalk ถึง Sec Ops ทันที พร้อมรูป</div>' +
+        '<div class="field"><textarea id="pt_note" rows="3" maxlength="1000" placeholder="พบอะไร ตรงไหน ทำอะไรไปแล้ว"></textarea></div></div></div>' +
       '<div class="section"><div class="slabel">👤 ผู้ตรวจ</div><div class="field"><input id="pt_n" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div></div>' +
       '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="sendPatrol()">บันทึกการตรวจ</button>' +
       '<button type="button" class="add-btn" style="margin-top:10px" onclick="scanPost()">📷 สแกนจุดถัดไป</button>' + backHome() + '</div>';
-    drawPh('pt_ph', PT.photos, 'pt'); gpsUI(); ptDist(); clearInterval(PT_TMR); PT_TMR = setInterval(() => { if (!$('pt_dist')) { clearInterval(PT_TMR); return; } ptDist(); }, 2000);
+    ptPhDraw(); gpsUI(); ptDist(); clearInterval(PT_TMR); PT_TMR = setInterval(() => { if (!$('pt_dist')) { clearInterval(PT_TMR); return; } ptDist(); }, 2000);
   }).catch(e => { $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div><button type="button" class="add-btn" onclick="scanPost()">📷 สแกนใหม่</button>' + backHome() + '</div>'; });
 }
 // v5.28d ระยะจากจุด (สด) · ต้องไม่เกิน p.radius เมตร
@@ -1098,10 +1100,10 @@ function ptDist() {
   const el = $('pt_dist'); if (!el || !PT) return; const p = PT.p;
   let h = '';
   if (!p.lat) h = '<div class="slabel">📍 จุดนี้ยังไม่มีพิกัด</div><div class="hint">บันทึกได้ตามปกติ' + (B && B.so ? ' · Sec Ops: ยืนตรงจุดแล้วกดปุ่มด้านล่างเพื่อตั้งพิกัด' : ' · แจ้ง Sec Ops ให้ตั้งพิกัดจุดนี้') + '</div>';
-  else if (GPS.st !== 'ok' || !GPS.lat) h = '<div class="slabel">📍 กำลังหาตำแหน่ง…</div><div class="hint">ต้องอยู่ห่างจุดไม่เกิน ' + p.radius + ' ม. · เปิด Location ของเครื่อง</div>';
+  else if (GPS.st !== 'ok' || !GPS.lat) h = '<div class="slabel">📍 กำลังหาตำแหน่ง…</div><div class="hint">ใช้ประกอบเท่านั้น · ไม่ต้องรอ GPS ก็บันทึกได้</div>';
   else {
     const d = Math.round(dist0({ lat: p.lat, lng: p.lng }, { lat: GPS.lat, lng: GPS.lng })), ok = d <= p.radius;
-    h = '<div class="slabel" style="color:' + (ok ? '#1f7a45' : '#b42318') + '">📍 ห่างจากจุด ' + d + ' ม. ' + (ok ? '✅' : '⚠️') + '</div><div class="hint">ต้องไม่เกิน ' + p.radius + ' ม.' + (GPS.acc ? ' · GPS คลาด ±' + Math.round(GPS.acc) + ' ม.' : '') + (ok ? '' : p.block ? ' · <b>เดินเข้าใกล้จุดก่อนจึงบันทึกได้</b>' : ' · บันทึกได้ แต่จะติดธง') + '</div>';
+    h = '<div class="slabel" style="color:' + (ok ? '#1f7a45' : '#8a5a00') + '">📍 ห่างจากจุด ' + d + ' ม. ' + (ok ? '✅' : '') + '</div><div class="hint">ข้อมูลประกอบ · ควรไม่เกิน ' + p.radius + ' ม.' + (GPS.acc ? ' · GPS คลาด ±' + Math.round(GPS.acc) + ' ม.' : '') + (ok ? '' : ' · บันทึกได้ (เก็บระยะไว้ให้ Sec Ops ดู)') + '</div>';
   }
   if (B && B.so) h += '<button type="button" class="add-btn" style="margin-top:8px" id="pt_setloc" onclick="ptSetLoc()">📍 บันทึกพิกัดจุดนี้ (ยืนตรงจุด · Sec Ops)</button>';
   el.innerHTML = h;
@@ -1112,25 +1114,57 @@ function ptSetLoc() {
   run('gPtSetLoc', SO_TOK, SITE.code, PT.p.id, GPS.lat, GPS.lng, GPS.acc).then(r => { PT.p.lat = GPS.lat; PT.p.lng = GPS.lng; ptDist(); showErr(''); ov('<div class="overlay-icon">📍</div><div class="overlay-title">บันทึกพิกัดแล้ว</div><div class="overlay-sub">' + esc(PT.p.name) + '<br>GPS คลาด ±' + r.acc + ' ม.</div><button class="overlay-btn" onclick="ovClose()">ตกลง</button>'); })
     .catch(e => { showErr('⚠️ ' + errText(e)); if ($('pt_setloc')) $('pt_setloc').disabled = false; });
 }
-function ptTog(i) { PT.ok[i] = !PT.ok[i]; $('ptc' + i).classList.toggle('on', PT.ok[i]); if (!PT.ok[i]) ptRes('ผิดปกติ'); }
+function ptMark(i, v) {
+  PT.ok[i] = v; $('ptc' + i + 'y').classList.toggle('on', v === true); $('ptc' + i + 'n').classList.toggle('on', v === false); $('ptc' + i + 'n').classList.toggle('n', v === false);
+  if (PT.ok.some(x => x === false)) ptRes('ผิดปกติ'); else if (PT.ok.every(x => x === true) && PT.res !== 'ผิดปกติ') ptRes('ปกติ');
+}
 function ptRes(r) {
+  if (r === 'ปกติ' && PT.ok.some(x => x === false)) return showErr('⚠️ มีข้อที่กด ❌ ไม่ปกติ · ผลต้องเป็น "พบสิ่งผิดปกติ"');
   PT.res = r; $('pt_ok').classList.toggle('on', r === 'ปกติ'); $('pt_bad').classList.toggle('on', r === 'ผิดปกติ');
-  $('pt_badBox').style.display = r === 'ผิดปกติ' ? 'block' : 'none';
-  if (r === 'ปกติ' && PT.ok.some(x => !x)) { PT.ok = PT.ok.map(() => true); PT.p.checks.forEach((c, i) => $('ptc' + i).classList.add('on')); }
+  $('pt_badBox').style.display = r === 'ผิดปกติ' ? 'block' : 'none'; showErr('');
+}
+// v5.29c รูป Patrol: ถ่ายจากกล้องเท่านั้น (ไม่ให้เลือกจากคลังรูป) + ประทับเวลา / จุด / พื้นที่ ในรูป
+function ptCamGo() { const max = PT.res === 'ผิดปกติ' ? 6 : 3; if (PT.photos.length >= max) return showErr('⚠️ ถ่ายได้ไม่เกิน ' + max + ' รูป'); $('ptCam').click(); }
+function ptStamp(dataUrl) {
+  return new Promise(ok => { const im = new Image(); im.onload = () => {
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+    const p = PT.p, d = new Date(), fs = Math.max(18, Math.round(im.width / 34)), pad = Math.round(fs * 0.6);
+    const L = [pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + (d.getFullYear() + 543) + '  ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()),
+      'PATROL · ' + SITE.code + ' · ' + p.id + ' ' + p.name, GPS.st === 'ok' && GPS.lat ? 'GPS ' + GPS.lat.toFixed(5) + ', ' + GPS.lng.toFixed(5) + (GPS.acc ? ' (±' + Math.round(GPS.acc) + ' ม.)' : '') : 'GPS -'];
+    const h = L.length * fs * 1.35 + pad * 2; x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, c.height - h, c.width, h);
+    x.fillStyle = '#fff'; x.font = '600 ' + fs + 'px sans-serif'; x.textBaseline = 'top';
+    L.forEach((t, i) => x.fillText(t, pad, c.height - h + pad + i * fs * 1.35, c.width - pad * 2));
+    ok(c.toDataURL('image/jpeg', 0.8)); }; im.onerror = () => ok(dataUrl); im.src = dataUrl; });
+}
+const pad2 = n => String(n).padStart(2, '0');
+$('ptCam').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || !PT) return;
+  // กันรูปเก่าจากคลังรูป: รูปที่ถ่ายใหม่มีเวลาไฟล์ ≈ ตอนนี้
+  if (f.lastModified && Math.abs(Date.now() - f.lastModified) > 3 * 60000) return showErr('⚠️ ต้องถ่ายรูปใหม่จากกล้องตอนนี้ · ใช้รูปเก่าในเครื่องไม่ได้');
+  busyPh(true);
+  try { PT.photos.push({ name: 'patrol.jpg', data: await ptStamp(await shrink(f, 1600, 0.8)) }); showErr(''); } catch (x) { showErr('⚠️ อ่านรูปไม่ได้ ลองถ่ายใหม่'); }
+  busyPh(false); ptPhDraw();
+});
+function busyPh(on) { const el = $('pt_ph'); if (el) el.style.opacity = on ? '.5' : ''; }
+function ptPhDraw() {
+  $('pt_ph').innerHTML = PT.photos.map((x, i) => '<div class="ph"><img alt="รูป ' + (i + 1) + '" src="' + x.data + '"><button type="button" aria-label="ลบรูป" onclick="PT.photos.splice(' + i + ',1);ptPhDraw()">×</button></div>').join('') +
+    '<button type="button" class="addp" aria-label="ถ่ายรูป" onclick="ptCamGo()">📷</button>';
 }
 async function sendPatrol() {
   const name = $('pt_n').value.trim(), p = PT.p;
+  const miss = PT.ok.map((v, i) => v === null ? i + 1 : 0).filter(Boolean);
+  if (miss.length) return showErr('⚠️ ยังไม่ได้กดข้อ ' + miss.join(', ') + ' · กด ✅ ปกติ หรือ ❌ ไม่ปกติ ให้ครบทุกข้อ');
   if (!PT.res) return showErr('⚠️ กรุณาเลือกผลการตรวจ: ปกติ / พบสิ่งผิดปกติ');
+  if (!PT.photos.length) return showErr('⚠️ ถ่ายรูปที่จุดอย่างน้อย 1 รูป');
   if (!name) return showErr('⚠️ กรุณาใส่ชื่อผู้ตรวจ');
   const bad = PT.res === 'ผิดปกติ', note = bad ? $('pt_note').value.trim() : '';
-  if (bad && !note && !PT.ok.some(x => !x)) return showErr('⚠️ พบสิ่งผิดปกติ: ติ๊กข้อที่ไม่ผ่าน หรือเขียนรายละเอียด');
-  if (p.lat && p.block) { if (GPS.st !== 'ok' || !GPS.lat) return showErr('⚠️ ยังจับตำแหน่ง GPS ไม่ได้ · รอสักครู่'); const dd = Math.round(dist0({ lat: p.lat, lng: p.lng }, { lat: GPS.lat, lng: GPS.lng })); if (dd > p.radius) return showErr('⚠️ อยู่ห่างจุดตรวจ ' + dd + ' ม. (ต้องไม่เกิน ' + p.radius + ' ม.) · เดินเข้าใกล้จุดแล้วกดอีกครั้ง'); }
+  if (bad && !note && !PT.ok.some(x => x === false)) return showErr('⚠️ พบสิ่งผิดปกติ: กด ❌ ข้อที่ไม่ปกติ หรือเขียนรายละเอียด');
   store.set('name', name); showErr(''); busy(bad ? 'กำลังแจ้งเหตุ…' : 'กำลังบันทึก…');
   try {
-    const files = bad && PT.photos.length ? await uploadAll(PT.photos.map((x, i) => ({ name: 'patrol_' + (i + 1) + '.jpg', get: () => Promise.resolve(x.data) })), 'patrol') : [];
+    const files = await uploadAll(PT.photos.slice(0, bad ? 6 : 3).map((x, i) => ({ name: 'patrol_' + (i + 1) + '.jpg', get: () => Promise.resolve(x.data) })), 'patrol');
     const r = await run('recordPatrol', { site: SITE.code, id: p.id, name: name, res: PT.res, checks: p.checks.map((t, i) => ({ t: t, ok: PT.ok[i] })), note: note, lat: GPS.lat, lng: GPS.lng, acc: GPS.acc, files: files });
     ov('<div class="overlay-icon">' + (bad ? '🚨' : '✅') + '</div><div class="overlay-title">' + (bad ? 'แจ้งสิ่งผิดปกติแล้ว' : 'ตรวจจุดแล้ว') + '</div><div class="overlay-big">' + esc(p.name) + '</div>' +
-      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + (r.dist !== '' && r.dist !== undefined ? '<br>📍 ห่างจากจุด ' + r.dist + ' ม.' : '') + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึง Sec Ops แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + (r.flag ? '<br><b style="color:#b42318">⚠️ ' + esc(r.flag) + '</b>' : '') + '</div>' +
+      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' + (r.dist !== '' && r.dist !== undefined ? '<br>📍 ห่างจากจุด ' + r.dist + ' ม.' : '') + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึง Sec Ops แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุป Patrol รายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
       '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
 }
