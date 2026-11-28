@@ -166,6 +166,7 @@ body.t-pf .header{background:linear-gradient(135deg,var(--accent2),var(--accent)
 .tsb .tl{margin-left:auto;font-size:12px;color:var(--subtle);text-align:right}
 .tsb .tl button{border:0;background:var(--accent-dim);color:var(--accent);border-radius:999px;padding:4px 10px;font-weight:700;font-size:12px;cursor:pointer;margin-top:2px}
 .gpsb{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);margin-bottom:14px;font-size:13px;color:var(--muted)}
+.whinfo{background:#eff6ff;border-radius:12px;padding:10px 12px;font-size:13px;color:#1e40af;margin-bottom:12px}.wh{border:1.5px solid #e6e8ec;border-radius:14px;padding:12px;margin-bottom:10px}.wh.cl{background:#f6f7f9;border-color:#d6d9de}.whh{display:flex;justify-content:space-between;align-items:center;gap:8px}.whh b{font-size:16px}.wst{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}.wst.o{background:#e3f6ea;color:#16794a}.wst.c{background:#e9ebef;color:#475467}.wsub{font-size:12.5px;color:#667085;margin-top:4px}.wbtn{margin-top:10px;width:100%;padding:12px;border-radius:12px;border:0;font:600 15px 'Kanit','IBM Plex Sans Thai',sans-serif;cursor:pointer}.wbtn.cl{background:#1f2937;color:#fff}.wbtn.op{background:#fff;border:1.5px solid #16a34a;color:#16794a}.pl{display:flex;justify-content:space-between;gap:8px;padding:9px 2px;border-bottom:1px dashed #eceef1;font-size:14px}.pl:last-child{border:0}.pl s{color:#98a2b3}.plm{color:#667085;font-size:12.5px;text-align:right}
 .section{background:#fff;border-radius:16px;padding:16px 14px 8px;margin-bottom:14px;box-shadow:var(--shadow)}
 .slabel{font:600 15px 'Kanit','IBM Plex Sans Thai',sans-serif;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .slabel .cnt{background:var(--accent);color:#fff;border-radius:9px;font-size:12px;padding:0 8px;font-family:'IBM Plex Sans Thai',sans-serif}
@@ -471,6 +472,7 @@ function home() {
     '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>รายงานประจำ<small>บันทึกเดินตรวจ · กุญแจ · อื่นๆ</small></b></button>' +
     '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>ตรวจบัญชีดำ<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
     '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>เดินตรวจจุดเสี่ยง<small>สแกน QR ที่จุดตรวจทุกรอบ</small></b></button>' +
+    (SITE.whs && SITE.whs.length ? '<button type="button" class="b slate wide" onclick="whPage()"><span style="font-size:24px;line-height:1">🔒</span><b>สถานะคลัง ' + esc(SITE.code) + '<small>กด คลังปิดแล้ว / เปิดคลัง · จุดตรวจตลอดยังต้องตรวจ</small></b></button>' : '') +
     (SITE.cars ? '<button type="button" class="b blue wide" onclick="formCar()"><span style="font-size:24px;line-height:1">🚗</span><b>ตรวจรถ<small>รถพนักงาน · รถบริษัท · สแกน QR บนบัตรจอดรถ</small></b></button>' : '') +
     (SITE.gate ? '<button type="button" class="b slate wide" onclick="formGate()"><span style="font-size:24px;line-height:1">📦</span><b>ใบนำเข้า-นำออก<small>สแกน QR ใบผ่าน · ตรวจของ · ถ่ายรูป</small></b></button>' : '') +
     (SITE.phone ? '<button type="button" class="b slate wide" onclick="formPhone()"><span style="font-size:24px;line-height:1">📱</span><b>ตรวจโทรศัพท์<small>สแกน / พิมพ์ IMEI · บันทึกเข้า-ออก จุดตรวจค้น</small></b></button>' : '') + '</div>' +
@@ -494,7 +496,7 @@ function ack(id) {
 let FORM_RK = '';
 const UP_CACHE = new Map();
 function rkNew_() { FORM_RK = Date.now().toString(36) + Math.random().toString(36).slice(2, 10); UP_CACHE.clear(); }
-function rkTag_(fn, a) { if (/^(saveRoutine|reportIncident|saveParcel|submitVoice|recordPatrol)$/.test(fn) && a[0] && typeof a[0] === 'object' && !Array.isArray(a[0]) && !a[0].rk) { if (!FORM_RK) rkNew_(); a[0].rk = FORM_RK; return true; } return false; }
+function rkTag_(fn, a) { if (/^(saveRoutine|reportIncident|saveParcel|submitVoice|recordPatrol|gWhSet)$/.test(fn) && a[0] && typeof a[0] === 'object' && !Array.isArray(a[0]) && !a[0].rk) { if (!FORM_RK) rkNew_(); a[0].rk = FORM_RK; return true; } return false; }
 // ส่งสำเร็จแล้ว → รายการถัดไปได้รหัสใหม่
 function run(fn, ...a) { const t = rkTag_(fn, a), p = run0_(fn, ...a); return t ? p.then(v => { FORM_RK = ''; return v; }) : p; }
 function formHead(badge, title, sub) {
@@ -1082,6 +1084,7 @@ function ptPage(id) {
       '<div class="hint">' + esc(p.id) + (p.zname ? ' · โซน ' + esc(p.zname) : '') + ' · ' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + '</div>' +
       '<div class="hint">' + (p.last ? 'ตรวจล่าสุด ' + esc(p.last.at.slice(5)) + ' · ' + esc(p.last.name) + (p.last.res === 'ผิดปกติ' ? ' · <b style="color:#6d4fc2">ผิดปกติ</b>' : '') : 'ยังไม่เคยตรวจ') + (p.next ? ' · รอบถัดไป ' + esc(p.next) + ' น.' : '') + '</div>' +
       (p.hours ? '<div class="hint">🕘 ' + (p.hoursPt ? 'เวลาตรวจของจุดนี้' : 'เวลาเดินตรวจของพื้นที่') + ': ' + esc(p.hours) + (p.off ? ' · <b>ตอนนี้นอกเวลาเดินตรวจ</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') +
+      (p.whClosed ? '<div class="hint" style="color:#475467">🔒 <b>คลัง ' + esc(SITE.code) + ' ปิดอยู่</b> (ปิดเมื่อ ' + esc(String(p.whAt).slice(11)) + ') · จุดนี้ไม่ต้องตรวจตอนนี้ (บันทึกได้ ไม่นับรอบ)</div>' : '') +
       (p.shifts && p.shifts.length ? '<div class="hint">🕘 ตรวจเฉพาะกะ: ' + esc(p.shifts.join(', ')) + (p.notShift ? ' · <b>กะนี้ไม่ต้องตรวจจุดนี้</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') + '</div>' +
       (p.checks.length ? '<div class="section"><div class="slabel">✅ สิ่งที่ต้องตรวจ * <span class="cnt">กดให้ครบทุกข้อ</span></div>' + p.checks.map((c, i) => '<div class="ptck" id="ptc' + i + '"><div class="ptck-t">' + (i + 1) + '. ' + esc(c) + '</div><div class="ptck-b"><button type="button" class="check-item" id="ptc' + i + 'y" onclick="ptMark(' + i + ',true)">✅ ปกติ</button><button type="button" class="check-item" id="ptc' + i + 'n" onclick="ptMark(' + i + ',false)">❌ ไม่ปกติ</button></div></div>').join('') + '</div>' : '') +
       '<div class="section"><div class="slabel">📷 ถ่ายรูปที่จุด * <span class="cnt">อย่างน้อย 1 รูป · ถ่ายจากกล้องเท่านั้น</span></div><div class="photos" id="pt_ph"></div><div class="hint">รูปจะมีวันเวลา · จุด · พื้นที่ ประทับในรูป</div></div>' +
@@ -1112,7 +1115,7 @@ function ptStamp(dataUrl) {
     const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
     const p = PT.p, d = new Date(), fs = Math.max(18, Math.round(im.width / 34)), pad = Math.round(fs * 0.6);
     const L = [pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + (d.getFullYear() + 543) + '  ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()),
-      'เดินตรวจ · ' + SITE.code + ' · ' + p.id + ' ' + p.name, GPS.st === 'ok' && GPS.lat ? 'GPS ' + GPS.lat.toFixed(5) + ', ' + GPS.lng.toFixed(5) + (GPS.acc ? ' (±' + Math.round(GPS.acc) + ' ม.)' : '') : 'GPS -'];
+      (PT.lbl || 'เดินตรวจ') + ' · ' + SITE.code + ' · ' + (PT.lbl ? '' : p.id + ' ') + p.name, GPS.st === 'ok' && GPS.lat ? 'GPS ' + GPS.lat.toFixed(5) + ', ' + GPS.lng.toFixed(5) + (GPS.acc ? ' (±' + Math.round(GPS.acc) + ' ม.)' : '') : 'GPS -'];
     const h = L.length * fs * 1.35 + pad * 2; x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, c.height - h, c.width, h);
     x.fillStyle = '#fff'; x.font = '600 ' + fs + 'px sans-serif'; x.textBaseline = 'top';
     L.forEach((t, i) => x.fillText(t, pad, c.height - h + pad + i * fs * 1.35, c.width - pad * 2));
@@ -1148,6 +1151,57 @@ async function sendPatrol() {
     ov('<div class="overlay-icon">' + (bad ? '🚨' : '✅') + '</div><div class="overlay-title">' + (bad ? 'แจ้งสิ่งผิดปกติแล้ว' : 'ตรวจจุดแล้ว') + '</div><div class="overlay-big">' + esc(p.name) + '</div>' +
       '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' +  + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึงฝ่ายความปลอดภัยแล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุปเดินตรวจรายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
       '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
+  } catch (e) { showErr('⚠️ ' + errText(e)); }
+}
+// ═══ v5.32 สถานะคลัง ═══
+let WH = null;
+function whPage() {
+  theme('t-or');
+  const hd = formHead('🔒', 'สถานะคลัง', 'ปิด / เปิดคลัง · จุดในคลังที่ปิดไม่ต้องเดินตรวจ');
+  $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังโหลด…</div></div></div>';
+  run('gWhInfo', SITE.code).then(r => { WH = r; whDraw(); }).catch(e => { $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div>' + backHome() + '</div>'; });
+}
+function whDraw() {
+  const r = WH, hd = formHead('🔒', 'สถานะคลัง', 'ปิด / เปิดคลัง · จุดในคลังที่ปิดไม่ต้องเดินตรวจ'), all = r.pts.filter(p => !p.wh), live = r.pts.filter(p => !p.closed), off = r.pts.filter(p => p.closed);
+  $('app').innerHTML = hd + '<div class="fmain"><div class="whinfo">จุดตรวจตลอด 24 ชม. (รอบนอก) <b>' + all.length + ' จุด ต้องเดินตรวจตามรอบเสมอ</b> แม้คลังจะปิด</div>' +
+    '<div class="section"><div class="slabel">🏭 สถานะคลัง</div>' + (r.whs.length ? r.whs.map((w, i) => '<div class="wh' + (w.closed ? ' cl' : '') + '"><div class="whh"><b>คลัง ' + esc(SITE.code) + '</b><span class="wst ' + (w.closed ? 'c' : 'o') + '">' + (w.closed ? '🔒 ปิดแล้ว' : '🟢 เปิดอยู่') + '</span></div>' +
+      '<div class="wsub">จุดตรวจในคลัง ' + w.n + ' จุด' + (w.at ? ' · ' + (w.closed ? 'ปิดเมื่อ ' + esc(w.at.slice(11)) + ' โดย ' + esc(w.by) + '<br>จุดในคลังหยุดนับรอบ · เปิดเองอัตโนมัติ ' + esc(w.auto) + ' น.' : w.autoOpened ? 'เปิดเองอัตโนมัติแล้ว' : 'เปิดเมื่อ ' + esc(w.at.slice(11)) + ' โดย ' + esc(w.by)) : '') + '</div>' +
+      '<button type="button" class="wbtn ' + (w.closed ? 'op' : 'cl') + '" onclick="' + (w.closed ? 'whOpenGo' : 'whClose') + '(' + i + ')">' + (w.closed ? '🔓 เปิดคลัง ' + esc(SITE.code) : '🔒 คลัง ' + esc(SITE.code) + ' ปิดแล้ว') + '</button></div>').join('') : '<div class="hint">พื้นที่นี้ยังไม่ได้ตั้งคลัง · ทุกจุดต้องตรวจตลอด 24 ชม.</div>') + '</div>' +
+    '<div class="section"><div class="slabel">📍 จุดที่ต้องเดินตรวจตอนนี้ <span class="cnt">' + live.length + '</span></div>' +
+    live.map(p => '<div class="pl"><span>✅ ' + esc(p.name) + '</span><span class="plm">' + (p.wh ? 'ในคลัง' : 'ตรวจตลอด 24 ชม.') + '</span></div>').join('') +
+    off.map(p => '<div class="pl"><s>' + esc(p.name) + '</s><span class="plm">🔒 คลังปิด · ไม่ต้องตรวจ</span></div>').join('') + '</div>' +
+    '<button type="button" class="add-btn" onclick="scanPost()">📷 สแกน QR จุดตรวจ</button>' + backHome() + '</div>';
+}
+function whClose(i) {
+  const w = Object.assign({}, WH.whs[i], { name: 'คลัง ' + SITE.code }), hd = formHead('🔒', 'สถานะคลัง', 'ปิด / เปิดคลัง · จุดในคลังที่ปิดไม่ต้องเดินตรวจ'), nAll = WH.pts.filter(p => !p.wh).length;
+  PT = { p: { id: 'คลัง', name: w.name + ' ปิดแล้ว' }, lbl: 'ปิดคลัง', res: '', ok: [], photos: [] };
+  $('app').innerHTML = hd + '<div class="fmain">' + tsBox(stamp(new Date())) + '<div class="section"><div class="slabel">🔒 ยืนยันปิด ' + esc(w.name) + '</div>' +
+    '<div class="hint" style="font-size:14px">หลังปิด จุดใน ' + esc(w.name) + ' <b>' + w.n + ' จุด</b> หยุดนับรอบ ไม่เตือนเลยรอบ<br>จุดตรวจตลอด 24 ชม. <b>' + nAll + ' จุด</b> ยังต้องเดินตรวจตามรอบปกติ</div></div>' +
+    '<div class="section"><div class="slabel">📷 ถ่ายรูปประตูคลังที่ปิดแล้ว * <span class="cnt">อย่างน้อย 1 รูป · กล้องเท่านั้น</span></div><div class="photos" id="pt_ph"></div><div class="hint">รูปจะมีวันเวลา · พื้นที่ · คลัง ประทับในรูป</div></div>' +
+    '<div class="section"><div class="slabel">📝 หมายเหตุ (ถ้ามี)</div><div class="field"><input id="wh_note" maxlength="300" placeholder="เช่น ปิดเร็ว ของเข้าน้อย"></div></div>' +
+    '<div class="section"><div class="slabel">👤 ผู้กด</div><div class="field"><input id="wh_n" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div><div class="hint">ระบบแจ้ง Seatalk ฝ่ายความปลอดภัยทันที · เปิดเองอัตโนมัติ ' + String(WH.openH).padStart(2, '0') + ':00 ถ้าไม่มีใครกดเปิด</div></div>' +
+    '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="whSend(' + i + ',\'ปิด\')">🔒 ยืนยัน ' + esc(w.name) + ' ปิดแล้ว</button>' +
+    '<button type="button" class="add-btn" style="margin-top:10px" onclick="whDraw()">← กลับ</button></div>';
+  ptPhDraw();
+}
+function whOpenGo(i) {
+  const w = Object.assign({}, WH.whs[i], { name: 'คลัง ' + SITE.code }), hd = formHead('🔒', 'สถานะคลัง', 'ปิด / เปิดคลัง · จุดในคลังที่ปิดไม่ต้องเดินตรวจ');
+  $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">🔓 เปิด ' + esc(w.name) + '</div><div class="hint" style="font-size:14px">จุดใน ' + esc(w.name) + ' <b>' + w.n + ' จุด</b> จะกลับมานับรอบ ต้องเดินตรวจตามปกติ</div></div>' +
+    '<div class="section"><div class="slabel">👤 ผู้กด</div><div class="field"><input id="wh_n" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div></div>' +
+    '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="whSend(' + i + ',\'เปิด\')">🔓 ยืนยันเปิด ' + esc(w.name) + '</button><button type="button" class="add-btn" style="margin-top:10px" onclick="whDraw()">← กลับ</button></div>';
+}
+async function whSend(i, act) {
+  const w = { name: 'คลัง ' + SITE.code }, name = $('wh_n').value.trim();
+  if (act === 'ปิด' && !PT.photos.length) return showErr('⚠️ ถ่ายรูปประตูคลังที่ปิดแล้วอย่างน้อย 1 รูป');
+  if (!name) return showErr('⚠️ กรุณาใส่ชื่อผู้กด');
+  store.set('name', name); showErr(''); busy(act === 'ปิด' ? 'กำลังบันทึกปิดคลัง…' : 'กำลังบันทึกเปิดคลัง…');
+  try {
+    const files = act === 'ปิด' ? await uploadAll(PT.photos.slice(0, 3).map((x, k) => ({ name: 'wh_' + (k + 1) + '.jpg', get: () => Promise.resolve(x.data) })), 'patrol') : [];
+    const r = await run('gWhSet', { site: SITE.code, wh: 'คลัง', act: act, name: name, note: act === 'ปิด' ? $('wh_note').value.trim() : '', files: files });
+    WH = r.info;
+    ov('<div class="overlay-icon">' + (act === 'ปิด' ? '🔒' : '🔓') + '</div><div class="overlay-title">' + (r.repeat ? (act === 'ปิด' ? 'คลังนี้ปิดอยู่แล้ว' : 'คลังนี้เปิดอยู่แล้ว') : (act === 'ปิด' ? 'บันทึกคลังปิดแล้ว' : 'เปิดคลังแล้ว')) + '</div><div class="overlay-big">' + esc(w.name) + '</div>' +
+      '<div class="overlay-sub">' + (r.at ? esc(r.at) + ' น. · ' : '') + esc(name) + (act === 'ปิด' ? '<br>จุดตรวจตลอด 24 ชม. ยังต้องเดินตรวจตามรอบ' : '<br>จุดในคลังกลับมานับรอบตามปกติ') + (r.repeat ? '' : r.sent ? '<br>แจ้ง Seatalk แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ</b>') + '</div>' +
+      '<button class="overlay-btn" onclick="ovClose();whDraw()">ดูสถานะคลัง</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
 }
 function ptOldQR() {
