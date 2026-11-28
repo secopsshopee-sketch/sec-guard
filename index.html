@@ -166,6 +166,9 @@ body.t-pf .header{background:linear-gradient(135deg,var(--accent2),var(--accent)
 .tsb .tl{margin-left:auto;font-size:12px;color:var(--subtle);text-align:right}
 .tsb .tl button{border:0;background:var(--accent-dim);color:var(--accent);border-radius:999px;padding:4px 10px;font-weight:700;font-size:12px;cursor:pointer;margin-top:2px}
 .gpsb{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);margin-bottom:14px;font-size:13px;color:var(--muted)}
+.scs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.scs-b{background:#fff;border-radius:14px;padding:10px;text-align:center;box-shadow:var(--shadow)}.scs-b b{display:block;font:700 24px 'Kanit',sans-serif}.scs-b span{font-size:12px;color:#667085}.scs-b.now b{color:#c2410c}.scs-b.miss b{color:#b42318}.scs-b.ok b{color:#1f7a45}
+.scp{background:#fff;border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow);border-left:5px solid #d0d5dd}.scp.due{border-left-color:#ea580c;background:#fff7ed}.scp.ms{border-left-color:#dc2626}.scp.cl{opacity:.6}.scp-h{display:flex;justify-content:space-between;align-items:center;gap:8px}.scp-h b{font:600 16px 'Kanit',sans-serif}.scp-s{font-size:12.5px;color:#667085;margin-top:2px}.scp-st{font-size:14px;margin-top:6px}
+.sct{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.sct span{font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px;background:#f2f4f7;color:#667085}.sct .done{background:#e3f6ea;color:#16794a}.sct .bad{background:#efe7fb;color:#6d4fc2}.sct .miss{background:#fde7e7;color:#c0262d}.sct .now{background:#ffedd5;color:#c2410c;outline:2px solid #fb923c}.sct .off{background:#eef0f3;color:#98a2b3}
 .whinfo{background:#eff6ff;border-radius:12px;padding:10px 12px;font-size:13px;color:#1e40af;margin-bottom:12px}.wh{border:1.5px solid #e6e8ec;border-radius:14px;padding:12px;margin-bottom:10px}.wh.cl{background:#f6f7f9;border-color:#d6d9de}.whh{display:flex;justify-content:space-between;align-items:center;gap:8px}.whh b{font-size:16px}.wst{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}.wst.o{background:#e3f6ea;color:#16794a}.wst.c{background:#e9ebef;color:#475467}.wsub{font-size:12.5px;color:#667085;margin-top:4px}.wbtn{margin-top:10px;width:100%;padding:12px;border-radius:12px;border:0;font:600 15px 'Kanit','IBM Plex Sans Thai',sans-serif;cursor:pointer}.wbtn.cl{background:#1f2937;color:#fff}.wbtn.op{background:#fff;border:1.5px solid #16a34a;color:#16794a}.pl{display:flex;justify-content:space-between;gap:8px;padding:9px 2px;border-bottom:1px dashed #eceef1;font-size:14px}.pl:last-child{border:0}.pl s{color:#98a2b3}.plm{color:#667085;font-size:12.5px;text-align:right}
 .section{background:#fff;border-radius:16px;padding:16px 14px 8px;margin-bottom:14px;box-shadow:var(--shadow)}
 .slabel{font:600 15px 'Kanit','IBM Plex Sans Thai',sans-serif;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -471,7 +474,7 @@ function home() {
     '<button type="button" class="b big tall" onclick="formCheckin()"><div class="ic">' + ico('i-in') + '</div><b>ลงเวลา<br>เข้า-ออกงาน<small>เช็คอินประจำกะ</small></b></button>' +
     '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>รายงานประจำ<small>บันทึกเดินตรวจ · กุญแจ · อื่นๆ</small></b></button>' +
     '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>ตรวจบัญชีดำ<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
-    '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>เดินตรวจจุดเสี่ยง<small>สแกน QR ที่จุดตรวจทุกรอบ</small></b></button>' +
+    '<button type="button" class="b slate wide" onclick="ptSched()">' + ico('i-qr') + '<b>เดินตรวจจุดเสี่ยง<small>ดูตารางว่าจุดไหนต้องตรวจกี่โมง · สแกน QR ที่จุด</small></b></button>' +
     (SITE.whs && SITE.whs.length ? '<button type="button" class="b slate wide" onclick="whPage()"><span style="font-size:24px;line-height:1">🔒</span><b>สถานะคลัง ' + esc(SITE.code) + '<small>กด คลังปิดแล้ว / เปิดคลัง · จุดตรวจตลอดยังต้องตรวจ</small></b></button>' : '') +
     (SITE.cars ? '<button type="button" class="b blue wide" onclick="formCar()"><span style="font-size:24px;line-height:1">🚗</span><b>ตรวจรถ<small>รถพนักงาน · รถบริษัท · สแกน QR บนบัตรจอดรถ</small></b></button>' : '') +
     (SITE.gate ? '<button type="button" class="b slate wide" onclick="formGate()"><span style="font-size:24px;line-height:1">📦</span><b>ใบนำเข้า-นำออก<small>สแกน QR ใบผ่าน · ตรวจของ · ถ่ายรูป</small></b></button>' : '') +
@@ -1082,7 +1085,7 @@ function ptPage(id) {
     $('app').innerHTML = hd + '<div class="fmain">' + tsBox(stamp(new Date())) +
       '<div class="section"><div class="slabel">📍 ' + esc(p.name) + ' <span class="cnt" style="background:' + (PT_LVC[p.level] || '#555') + ';color:#fff">เสี่ยง' + esc(p.level) + '</span></div>' +
       '<div class="hint">' + esc(p.id) + (p.zname ? ' · โซน ' + esc(p.zname) : '') + ' · ' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + '</div>' +
-      '<div class="hint">' + (p.last ? 'ตรวจล่าสุด ' + esc(p.last.at.slice(5)) + ' · ' + esc(p.last.name) + (p.last.res === 'ผิดปกติ' ? ' · <b style="color:#6d4fc2">ผิดปกติ</b>' : '') : 'ยังไม่เคยตรวจ') + (p.next ? ' · รอบถัดไป ' + esc(p.next) + ' น.' : '') + '</div>' +
+      '<div class="hint">' + (p.last ? 'ตรวจล่าสุด ' + esc(p.last.at.slice(5)) + ' · ' + esc(p.last.name) + (p.last.res === 'ผิดปกติ' ? ' · <b style="color:#6d4fc2">ผิดปกติ</b>' : '') : 'ยังไม่เคยตรวจ') + (p.next ? (p.dueNow ? ' · <b style="color:#c2410c">⏰ ต้องตรวจรอบนี้ก่อน ' + esc(p.next) + ' น.</b>' : ' · ตรวจรอบนี้แล้ว · รอบถัดไปเริ่ม ' + esc(p.next) + ' น.') : '') + '</div>' +
       (p.hours ? '<div class="hint">🕘 ' + (p.hoursPt ? 'เวลาตรวจของจุดนี้' : 'เวลาเดินตรวจของพื้นที่') + ': ' + esc(p.hours) + (p.off ? ' · <b>ตอนนี้นอกเวลาเดินตรวจ</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') +
       (p.whClosed ? '<div class="hint" style="color:#475467">🔒 <b>คลัง ' + esc(SITE.code) + ' ปิดอยู่</b> (ปิดเมื่อ ' + esc(String(p.whAt).slice(11)) + ') · จุดนี้ไม่ต้องตรวจตอนนี้ (บันทึกได้ ไม่นับรอบ)</div>' : '') +
       (p.shifts && p.shifts.length ? '<div class="hint">🕘 ตรวจเฉพาะกะ: ' + esc(p.shifts.join(', ')) + (p.notShift ? ' · <b>กะนี้ไม่ต้องตรวจจุดนี้</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') + '</div>' +
@@ -1150,8 +1153,32 @@ async function sendPatrol() {
     const r = await run('recordPatrol', { site: SITE.code, id: p.id, name: name, res: PT.res, checks: p.checks.map((t, i) => ({ t: t, ok: PT.ok[i] })), note: note, lat: GPS.lat, lng: GPS.lng, acc: GPS.acc, files: files });
     ov('<div class="overlay-icon">' + (bad ? '🚨' : '✅') + '</div><div class="overlay-title">' + (bad ? 'แจ้งสิ่งผิดปกติแล้ว' : 'ตรวจจุดแล้ว') + '</div><div class="overlay-big">' + esc(p.name) + '</div>' +
       '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' +  + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึงฝ่ายความปลอดภัยแล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุปเดินตรวจรายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
-      '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
+      '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();ptSched()">🕘 ดูตารางเดินตรวจ</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
+}
+// ═══ v5.33 ตารางเดินตรวจ ═══
+function ptSched() {
+  theme('t-or');
+  const hd = formHead('🕘', 'ตารางเดินตรวจ', 'จุดไหนต้องตรวจกี่โมง · รักษาความปลอดภัย SPX');
+  $('app').innerHTML = hd + '<div class="fmain"><button type="button" class="submit-btn" onclick="scanPost()">📷 สแกน QR จุดตรวจ</button><div class="section" style="margin-top:14px"><div class="slabel">⏳ กำลังโหลดตาราง…</div></div></div>';
+  run('gPtSchedule', SITE.code).then(r => {
+    const icon = { done: '✓', bad: '⚠', miss: '✕', now: '⏰', next: '', off: '🔒' };
+    const rank = p => p.closed ? 9 : p.slots.some(x => x.st === 'now') ? 0 : p.miss ? 1 : 2;
+    const L = r.pts.slice().sort((a, b) => rank(a) - rank(b) || String(a.next || 'z').localeCompare(String(b.next || 'z')) || a.name.localeCompare(b.name));
+    const nNow = r.pts.filter(p => !p.closed && p.slots.some(x => x.st === 'now')).length, nMiss = r.pts.reduce((a, p) => a + p.miss, 0), nDone = r.pts.reduce((a, p) => a + p.done, 0);
+    $('app').innerHTML = formHead('🕘', 'ตารางเดินตรวจ', (r.shift ? 'กะ' + esc(r.shift) + ' ' + esc(r.from) + '–' + esc(r.to) + ' · ' : '') + 'ตอนนี้ ' + esc(r.now) + ' น.') + '<div class="fmain">' +
+      '<button type="button" class="submit-btn" onclick="scanPost()">📷 สแกน QR จุดตรวจ</button>' +
+      (r.whClosed ? '<div class="whinfo" style="margin-top:12px">🔒 <b>คลัง ' + esc(SITE.code) + ' ปิดอยู่</b> · ตรวจเฉพาะจุดตรวจตลอด 24 ชม.</div>' : '') +
+      '<div class="scs"><div class="scs-b now"><b>' + nNow + '</b><span>ต้องตรวจตอนนี้</span></div><div class="scs-b miss"><b>' + nMiss + '</b><span>รอบที่ขาด</span></div><div class="scs-b ok"><b>' + nDone + '</b><span>ตรวจแล้ว (กะนี้)</span></div></div>' +
+      (r.shift ? '' : '<div class="section"><div class="hint">ตอนนี้ไม่อยู่ในกะทำงาน</div></div>') +
+      L.map(p => { const cur = p.slots.find(x => x.st === 'now');
+        return '<div class="scp' + (p.closed ? ' cl' : cur ? ' due' : p.miss ? ' ms' : '') + '"><div class="scp-h"><b>' + esc(p.name) + '</b><span class="cnt" style="background:' + (PT_LVC[p.level] || '#555') + ';color:#fff">เสี่ยง' + esc(p.level) + '</span></div>' +
+          '<div class="scp-s">' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + ' · ' + (p.wh ? 'ในคลัง' : 'ตรวจตลอด 24 ชม.') + (p.last ? ' · ล่าสุด ' + esc(p.last) + ' น.' : '') + '</div>' +
+          '<div class="scp-st">' + (p.closed ? '🔒 คลังปิด · ไม่ต้องตรวจตอนนี้' : cur ? '⏰ <b>ต้องตรวจตอนนี้</b> (' + esc(cur.t) + (cur.t === 'ภายในกะ' ? '' : '–' + esc(cur.end)) + ')' : p.next ? '🕘 รอบถัดไป <b>' + esc(p.next) + ' น.</b>' : p.slots.length && p.slots.every(x => x.st === 'done' || x.st === 'bad' || x.st === 'off' || x.st === 'miss') ? 'ครบรอบของกะนี้แล้ว' : '') + '</div>' +
+          (p.hrs ? '<div class="sct">' + p.slots.map(x => '<span class="' + x.st + '" title="' + esc(x.t + '–' + x.end) + (x.at ? ' · ตรวจ ' + esc(x.at) : '') + '">' + esc(x.t) + (icon[x.st] ? ' ' + icon[x.st] : '') + '</span>').join('') + '</div>' : '') + '</div>'; }).join('') +
+      '<div class="hint" style="text-align:center;margin:10px 0">✓ ตรวจแล้ว · ⚠ พบผิดปกติ · ✕ ขาด · ⏰ ต้องตรวจตอนนี้ · 🔒 คลังปิด</div>' +
+      '<button type="button" class="add-btn" onclick="ptSched()">🔄 อัปเดตตาราง</button>' + backHome() + '</div>';
+  }).catch(e => { $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div><button type="button" class="add-btn" onclick="scanPost()">📷 สแกน QR จุดตรวจ</button>' + backHome() + '</div>'; });
 }
 // ═══ v5.32 สถานะคลัง ═══
 let WH = null;
@@ -1230,7 +1257,7 @@ function sendScan(post) {
   store.set('name', name); showErr(''); busy('กำลังบันทึก…');
   run('recordScan', SITE.code, post, name, GPS.lat, GPS.lng).then(r => {
     ov('<div class="overlay-icon">✅</div><div class="overlay-title">ตรวจจุดแล้ว</div><div class="overlay-big">' + esc(post) + '</div><div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + (r.flag ? '<br><b style="color:#b42318">⚠️ ' + esc(r.flag) + '</b>' : '') + '</div>' +
-      '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
+      '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();ptSched()">🕘 ดูตารางเดินตรวจ</button>');
   }).catch(e => showErr('⚠️ ' + errText(e)));
 }
 
