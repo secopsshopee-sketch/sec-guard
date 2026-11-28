@@ -312,7 +312,7 @@ function fetchT_(fn, opt) {
   const ms = /^upload/i.test(fn) ? 120000 : /^(gBoot|gSite|gScanInfo|gPatrolInfo)$/.test(fn) ? 40000 : 330000, ac = window.AbortController ? new AbortController() : null;
   const t = ac ? setTimeout(() => ac.abort(), ms) : 0;
   return fetch(SEC_API, Object.assign({}, opt, ac ? { signal: ac.signal } : {})).finally(() => clearTimeout(t))
-    .catch(e => { if (e && e.name === 'AbortError') throw new Error('ระบบตอบช้าเกิน ' + Math.round(ms / 1000) + ' วินาที · ลองใหม่อีกครั้ง (ถ้ายังไม่ได้ แจ้ง Sec Ops)'); throw e; });
+    .catch(e => { if (e && e.name === 'AbortError') throw new Error('ระบบตอบช้าเกิน ' + Math.round(ms / 1000) + ' วินาที · ลองใหม่อีกครั้ง (ถ้ายังไม่ได้ แจ้งฝ่ายความปลอดภัย)'); throw e; });
 }
 const run0_ = (fn, ...a) => IN_GAS
   ? new Promise((ok, no) => google.script.run.withSuccessHandler(ok).withFailureHandler(no)[fn](...a))
@@ -337,11 +337,11 @@ const deviceId = (() => { let d = store.get('device'); if (!d) { d = 'D' + Date.
 function theme(t) { document.body.className = t; window.scrollTo(0, 0); }
 
 // ── เริ่ม ──
-// v5.00 ลิงก์ Sec Ops (?so=) → เก็บไว้ในแท็บนี้ แล้วเอาออกจากแถบที่อยู่ (กันติดไปกับการแชร์ลิงก์)
+// v5.00 ลิงก์ฝ่ายความปลอดภัย (?so=) → เก็บไว้ในแท็บนี้ แล้วเอาออกจากแถบที่อยู่ (กันติดไปกับการแชร์ลิงก์)
 getLoc().then(loc => {
   const P = (loc && loc.parameter) || {};
   let so = P.so || ''; try { if (so) sessionStorage.setItem('sec_so', so); else so = sessionStorage.getItem('sec_so') || ''; } catch (e) {}
-  SO_TOK = so;   // v5.28d ใช้บันทึกพิกัดจุด Patrol (โหมด Sec Ops)
+  SO_TOK = so;   // v5.28d ใช้บันทึกพิกัดจุด Patrol (โหมดฝ่ายความปลอดภัย)
   if (P.so && !IN_GAS) { try { const u = new URL(location.href); u.searchParams.delete('so'); history.replaceState(null, '', u.toString()); } catch (e) {} }
   return Promise.all([run('gBoot', so), Promise.resolve(loc)]);
 }).then(([b, loc]) => {
@@ -373,7 +373,7 @@ function dist(a, b) {
   return Math.max(0, Math.min.apply(null, G.map(g => dist0(g, b) - g.radius)) + a.radius);
 }
 function gpsInfo() {
-  if (GPS.st === 'bad') return { c: 'bad', t: '❌ ปิด GPS อยู่ — ต้องเปิดตำแหน่งก่อนลงเวลา: เปิด Location ของเครื่อง + อนุญาตตำแหน่งให้ Chrome (Settings → Chrome → Permissions → Location) แล้วกดลองใหม่' };
+  if (GPS.st === 'bad') return { c: 'bad', t: '❌ ปิด GPS อยู่ — ต้องเปิดตำแหน่งก่อนลงเวลา: เปิดตำแหน่ง (GPS) ของเครื่อง + อนุญาตตำแหน่งให้ Chrome (ตั้งค่า → Chrome → สิทธิ์ → ตำแหน่ง) แล้วกดลองใหม่' };
   if (GPS.st === 'ok') { const d = dist(SITE, GPS); if (d !== null && d > SITE.radius) return { c: 'bad', t: '⚠️ อยู่นอกพื้นที่ ' + SITE.code + ' ประมาณ ' + Math.round(d) + ' ม.' }; return { c: 'ok', t: '✅ ระบุตำแหน่งได้แล้ว · ' + SITE.code }; }
   return { c: 'wait', t: 'กำลังระบุตำแหน่ง...' };
 }
@@ -403,27 +403,27 @@ function nearSites() {
 }
 function pickSite() {
   theme('t-hub'); SITE = null;
-  const top = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>เลือกพื้นที่ประจำการ</small></div></div><div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
-  if (!B.sites.length) { PICK_SIG = 'none'; $('app').innerHTML = top + '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้ง Sec Ops</div></div>'; return; }
+  const top = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>รักษาความปลอดภัย SPX</b><small>เลือกพื้นที่ประจำการ</small></div></div><div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
+  if (!B.sites.length) { PICK_SIG = 'none'; $('app').innerHTML = top + '<div class="notice"><b>ยังไม่มีพื้นที่เปิดใช้งาน</b><div>แจ้งฝ่ายความปลอดภัย</div></div>'; return; }
   let h = top, sig;
   if (GPS.st !== 'ok' && B.so) {
     sig = 'so-gps-' + GPS.st;
-    h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมด Sec Ops · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · GPS ยังไม่พร้อม</div></div><div class="sec">ทุกพื้นที่</div>' + B.sites.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
+    h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมดฝ่ายความปลอดภัย · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · GPS ยังไม่พร้อม</div></div><div class="sec">ทุกพื้นที่</div>' + B.sites.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + esc(s.bu || '') + '</span></button>').join('');
     PICK_SIG = sig; $('app').innerHTML = h; return;
   }
   if (GPS.st !== 'ok') {
     sig = 'gps-' + GPS.st;
     h += GPS.st === 'bad'
-      ? '<div class="notice"><b>📍 ต้องเปิด GPS ก่อน</b><div>ระบบจะแสดงเฉพาะพื้นที่ที่คุณอยู่ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome (Settings → Chrome → Permissions → Location)</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ลองใหม่</button></div>'
+      ? '<div class="notice"><b>📍 ต้องเปิด GPS ก่อน</b><div>ระบบจะแสดงเฉพาะพื้นที่ที่คุณอยู่ · เปิดตำแหน่ง (GPS) ของเครื่อง และอนุญาตตำแหน่งให้ Chrome (ตั้งค่า → Chrome → สิทธิ์ → ตำแหน่ง)</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ลองใหม่</button></div>'
       : '<div class="loading"><div class="spinner" style="margin:0"></div>กำลังระบุตำแหน่งเพื่อแสดงพื้นที่ของคุณ…</div>';
   } else {
-    if (B.so) {   // โหมด Sec Ops: แสดงทุกพื้นที่ (ในระยะขึ้นก่อน)
+    if (B.so) {   // โหมดฝ่ายความปลอดภัย: แสดงทุกพื้นที่ (ในระยะขึ้นก่อน)
       const near = nearSites(), far = B.sites.filter(s => !near.some(x => x.s === s));
       sig = 'so-' + near.map(x => x.s.code).join(',');
-      h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมด Sec Ops · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · ลงเวลายังต้องอยู่ในรัศมีของพื้นที่</div></div>';
+      h += '<div class="notice" style="background:#E8EEF8;border-color:#C9D6EE;color:#1D2B45"><b>🛡 โหมดฝ่ายความปลอดภัย · เห็นทุกพื้นที่</b><div>ใช้ได้ถึง ' + esc(B.so.until) + ' · ลงเวลายังต้องอยู่ในรัศมีของพื้นที่</div></div>';
       if (near.length) h += '<div class="sec">ในระยะ GPS</div>' + near.map(x => '<button type="button" class="sitebtn near" onclick="openSite(\'' + esc(x.s.code) + '\')"><b>' + esc(x.s.name) + '</b><span style="color:#e8622c;font-weight:700">เข้าพื้นที่นี้ →</span></button>').join('');
       h += '<div class="sec">ทุกพื้นที่</div>' + far.map(s => '<button type="button" class="sitebtn" onclick="openSite(\'' + esc(s.code) + '\')"><b>' + esc(s.name) + '</b><span style="color:#7a8190">' + (!(s.geo && s.geo.length) && !s.lat ? '⚠️ ยังไม่ตั้งพิกัด' : esc(s.bu || '')) + '</span></button>').join('');
-      PICK_SIG = sig; $('app').innerHTML = h + '<div class="foot">โหมดนี้สำหรับ Sec Ops เท่านั้น</div>'; return;
+      PICK_SIG = sig; $('app').innerHTML = h + '<div class="foot">โหมดนี้สำหรับฝ่ายความปลอดภัยเท่านั้น</div>'; return;
     }
     const near = nearSites(), qr = near.find(x => x.s.code === QR_SITE), last = near.find(x => x.s.code === store.get('site'));
     const first = qr || near[0];
@@ -438,7 +438,7 @@ function pickSite() {
       h += '<div class="notice"><b>ไม่พบพื้นที่ในระยะ</b><div>ตำแหน่งของคุณอยู่นอกพื้นที่ทุกแห่ง' + (QR_SITE ? ' (รวมถึงพื้นที่ใน QR ที่สแกน)' : '') + ' · เดินเข้าพื้นที่แล้วรอสักครู่ ระบบจะแสดงให้เอง' + (GPS.acc > 100 ? ' · ตอนนี้ GPS คลาดเคลื่อน ±' + Math.round(GPS.acc) + ' ม. ลองออกไปที่โล่ง' : '') + '</div><button type="button" style="display:block;width:100%;margin-top:12px;border:0;border-radius:12px;padding:13px;background:#e8622c;color:#fff;font:inherit;font-weight:700;cursor:pointer" onclick="gpsRetry()">📍 ระบุตำแหน่งใหม่</button></div>';
     }
   }
-  // v5.01 พื้นที่ที่ยังไม่ได้ตั้งพิกัด → ไม่แสดงให้ รปภ. (โหมด Sec Ops ยังเห็นทุกพื้นที่)
+  // v5.01 พื้นที่ที่ยังไม่ได้ตั้งพิกัด → ไม่แสดงให้ รปภ. (โหมดฝ่ายความปลอดภัยยังเห็นทุกพื้นที่)
   h += '<div class="foot">แสดงเฉพาะพื้นที่ที่คุณอยู่ในรัศมี · ตรวจให้ตรงกับพื้นที่ที่ประจำการวันนี้ก่อนกดเข้า</div>';
   PICK_SIG = sig;
   $('app').innerHTML = h;
@@ -459,7 +459,7 @@ function openSite(code) {
 function home() {
   if (BL_ONLY) return formBL();   // โหมดตรวจ BlackList หน้าเดียว
   theme('t-hub');
-  let h = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>SPX Security</b><small>' + esc(SITE.name) + ' · <button type="button" onclick="pickSite()">เปลี่ยนพื้นที่</button></small></div></div>' +
+  let h = '<div class="top"><div class="brand"><div class="logo">S</div><div><b>รักษาความปลอดภัย SPX</b><small>' + esc(SITE.name) + ' · <button type="button" onclick="pickSite()">เปลี่ยนพื้นที่</button></small></div></div>' +
     '<div class="time"><b class="lt">' + hms(new Date()) + '</b><small class="ld">' + thDate(new Date()) + '</small></div></div>';
   CFG.notices.forEach(n => {
     const done = store.get('ack_' + n.id);
@@ -468,17 +468,17 @@ function home() {
   });
   h += '<div class="sec">ใช้ทุกกะ</div><div class="bento">' +
     '<button type="button" class="b big tall" onclick="formCheckin()"><div class="ic">' + ico('i-in') + '</div><b>ลงเวลา<br>เข้า-ออกงาน<small>เช็คอินประจำกะ</small></b></button>' +
-    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>Routine<small>Patrol Log · กุญแจ · อื่นๆ</small></b></button>' +
-    '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>BlackList<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
-    '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>Patrol ตรวจจุดเสี่ยง<small>สแกน QR PATROL ที่จุดตรวจทุกรอบ</small></b></button>' +
+    '<button type="button" class="b blue" onclick="formRoutine()">' + ico('i-route') + '<b>รายงานประจำ<small>บันทึกเดินตรวจ · กุญแจ · อื่นๆ</small></b></button>' +
+    '<button type="button" class="b amber" onclick="formBL()">' + ico('i-bl') + '<b>ตรวจบัญชีดำ<small>ตรวจก่อนเข้าพื้นที่</small></b></button>' +
+    '<button type="button" class="b slate wide" onclick="scanPost()">' + ico('i-qr') + '<b>เดินตรวจจุดเสี่ยง<small>สแกน QR ที่จุดตรวจทุกรอบ</small></b></button>' +
     (SITE.cars ? '<button type="button" class="b blue wide" onclick="formCar()"><span style="font-size:24px;line-height:1">🚗</span><b>ตรวจรถ<small>รถพนักงาน · รถบริษัท · สแกน QR บนบัตรจอดรถ</small></b></button>' : '') +
     (SITE.gate ? '<button type="button" class="b slate wide" onclick="formGate()"><span style="font-size:24px;line-height:1">📦</span><b>ใบนำเข้า-นำออก<small>สแกน QR ใบผ่าน · ตรวจของ · ถ่ายรูป</small></b></button>' : '') +
-    (SITE.phone ? '<button type="button" class="b slate wide" onclick="formPhone()"><span style="font-size:24px;line-height:1">📱</span><b>ตรวจโทรศัพท์<small>สแกน / พิมพ์ IMEI · บันทึกเข้า-ออก Body Check</small></b></button>' : '') + '</div>' +
+    (SITE.phone ? '<button type="button" class="b slate wide" onclick="formPhone()"><span style="font-size:24px;line-height:1">📱</span><b>ตรวจโทรศัพท์<small>สแกน / พิมพ์ IMEI · บันทึกเข้า-ออก จุดตรวจค้น</small></b></button>' : '') + '</div>' +
     '<div class="sec">เมื่อพบเหตุ</div><div class="bento">' +
     '<button type="button" class="b red" onclick="formIncident()">' + ico('i-alert') + '<b>แจ้งเหตุ<small>เหตุการณ์ในพื้นที่</small></b></button>' +
-    '<button type="button" class="b green" onclick="formParcel()">' + ico('i-box') + '<b>พัสดุตกหล่น<small>Parcel Found</small></b></button></div>' +
-    '<button type="button" class="voice" onclick="formVoice()"><span class="ic">' + ico('i-voice') + '</span><span><b>แจ้งปัญหา รปภ.</b><small>มีปัญหากับงานหรือหัวหน้า ส่งตรงถึง Sec Ops เป็นความลับ</small></span></button>' +
-    (CFG.shifts.length ? '<div class="foot">กะของพื้นที่นี้: ' + esc(CFG.shifts.join(' · ')) + '</div>' : '') + '<div class="foot">SPX Security · Sec Ops</div>';
+    '<button type="button" class="b green" onclick="formParcel()">' + ico('i-box') + '<b>พัสดุตกหล่น<small>พัสดุตกค้างนอกพื้นที่</small></b></button></div>' +
+    '<button type="button" class="voice" onclick="formVoice()"><span class="ic">' + ico('i-voice') + '</span><span><b>แจ้งปัญหา รปภ.</b><small>มีปัญหากับงานหรือหัวหน้า ส่งตรงถึงฝ่ายความปลอดภัยเป็นความลับ</small></span></button>' +
+    (CFG.shifts.length ? '<div class="foot">กะของพื้นที่นี้: ' + esc(CFG.shifts.join(' · ')) + '</div>' : '') + '<div class="foot">รักษาความปลอดภัย SPX · ฝ่ายความปลอดภัย</div>';
   $('app').innerHTML = h;
 }
 
@@ -514,7 +514,7 @@ function formCheckin() {
   theme('t-ci');
   CI = { type: '', photo: '', src: '' };
   const d = new Date();
-  $('app').innerHTML = '<div class="ci-head"><div><div class="ht">เช็คกำลังพล</div><div class="hs">SPX Security · ' + esc(SITE.name) + '</div></div><button type="button" class="pill-back" onclick="home()">← หน้าแรก</button></div>' +
+  $('app').innerHTML = '<div class="ci-head"><div><div class="ht">เช็คกำลังพล</div><div class="hs">รักษาความปลอดภัย SPX · ' + esc(SITE.name) + '</div></div><button type="button" class="pill-back" onclick="home()">← หน้าแรก</button></div>' +
     '<div class="ci-main"><div class="ci-bento"><div class="t span2 clockt"><small>เวลาปัจจุบัน · ล็อกเวลาตอนกดบันทึก</small><div class="bt lt">' + hms(d) + '</div><div class="bd ld">' + thDate(d) + '</div></div>' +
     '<div class="t span2 gpst"></div></div><div id="ciBody"></div></div>';
   ciStart(); gpsUI();
@@ -565,7 +565,7 @@ function loadTaken() {
       $('ci_post').innerHTML = postOptions(r.taken, ciMe(), r.posts && r.posts.length ? r.posts : null);
       if (cur && [...$('ci_post').options].some(o => o.value === cur && !o.disabled)) $('ci_post').value = cur;
       const n = Object.keys(r.taken).length;
-      $('ci_ph').textContent = r.shift ? (/^กะ/.test(r.shift) ? '' : 'กะ') + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ (มาก่อนเวลาเกิน 1 ชม. หรือสายเกิน 4 ชม.) · บันทึกได้ แต่ไม่นับเข้ากะ Sec Ops จะยืนยันให้';
+      $('ci_ph').textContent = r.shift ? (/^กะ/.test(r.shift) ? '' : 'กะ') + r.shift + ' · ลงแล้ว ' + n + ' จาก ' + CFG.posts.length + ' จุด' : 'ยังไม่อยู่ในช่วงเวลากะ (มาก่อนเวลาเกิน 1 ชม. หรือสายเกิน 4 ชม.) · บันทึกได้ แต่ไม่นับเข้ากะฝ่ายความปลอดภัยจะยืนยันให้';
     } else { outOptions(); $('ci_ph').textContent = r.shift ? 'ออกงานกะ ' + r.shift.replace(/^กะ/, '') : 'ไม่อยู่ในช่วงเวลาเลิกกะ · เลือกจุดที่คุณประจำการ'; }
     ciLockUI();
   }).catch(() => { $('ci_ph').textContent = ''; if ($('ci_post') && CI.type === 'ออก') outOptions(); });
@@ -643,10 +643,10 @@ function gpsRetry() {
   if (!navigator.geolocation) return msg('⚠️ เครื่องนี้ไม่รองรับ GPS · ใช้เครื่องอื่นลงเวลา');
   msg('กำลังระบุตำแหน่ง...'); if (!SITE) { GPS.st = 'wait'; pickRefresh(); }
   navigator.geolocation.getCurrentPosition(p => { GPS = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, at: Date.now(), st: 'ok' }; gpsUI(); msg(''); },
-    () => { GPS.st = 'bad'; gpsUI(); msg('⚠️ ยังเปิด GPS ไม่ได้ · เปิด Location ของเครื่อง และอนุญาตตำแหน่งให้ Chrome แล้วลองใหม่'); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    () => { GPS.st = 'bad'; gpsUI(); msg('⚠️ ยังเปิด GPS ไม่ได้ · เปิดตำแหน่ง (GPS) ของเครื่อง และอนุญาตตำแหน่งให้ Chrome แล้วลองใหม่'); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }
 function gpsGate() {
-  if (GPS.st !== 'ok' || !GPS.lat || Date.now() - (GPS.at || 0) > 120000) { showErr('⚠️ ต้องเปิด GPS ก่อนลงเวลา · เปิด Location ของเครื่อง + อนุญาตตำแหน่งให้ Chrome แล้วกด "ลองใหม่"'); if ($('err')) $('err').insertAdjacentHTML('beforeend', ' <button type="button" class="retake" style="position:static;margin-left:6px" onclick="gpsRetry()">📍 ลองใหม่</button>'); return false; }
+  if (GPS.st !== 'ok' || !GPS.lat || Date.now() - (GPS.at || 0) > 120000) { showErr('⚠️ ต้องเปิด GPS ก่อนลงเวลา · เปิดตำแหน่ง (GPS) ของเครื่อง + อนุญาตตำแหน่งให้ Chrome แล้วกด "ลองใหม่"'); if ($('err')) $('err').insertAdjacentHTML('beforeend', ' <button type="button" class="retake" style="position:static;margin-left:6px" onclick="gpsRetry()">📍 ลองใหม่</button>'); return false; }
   const dd = dist(SITE, GPS); if (dd !== null && dd > SITE.radius) { showErr('⚠️ อยู่นอกพื้นที่ ' + SITE.code + ' ประมาณ ' + Math.round(dd) + ' ม. · ลงเวลาได้เฉพาะในพื้นที่ (รัศมี ' + SITE.radius + ' ม.)'); return false; }
   return true;
 }
@@ -676,7 +676,7 @@ function formIncident() {
   theme('t-or');
   const now = new Date();
   IN = { level: '', type: '', products: [], steps: [], photos: [], files: [], suspects: [], ts: stamp(now) };
-  $('app').innerHTML = formHead('!', 'Incident Report', 'รายงานแจ้งเหตุ SPX Security') + '<div class="fmain">' + tsBox(IN.ts) + '<div class="gpsb"></div>' +
+  $('app').innerHTML = formHead('!', 'แจ้งเหตุ', 'รายงานเหตุผิดปกติ · รักษาความปลอดภัย SPX') + '<div class="fmain">' + tsBox(IN.ts) + '<div class="gpsb"></div>' +
     '<div class="section"><div class="slabel">📋 ข้อมูลเหตุการณ์</div>' +
     '<div class="row2"><div class="field"><label for="in_d">วันที่เกิดเหตุ <i>*</i></label><input id="in_d" type="date" value="' + ymd(now) + '"></div>' +
     '<div class="field"><label for="in_t">เวลาเกิดเหตุ (24 ชม.) <i>*</i></label><input id="in_t" type="time" value="' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + '"></div></div>' +
@@ -758,13 +758,13 @@ async function sendIncident() {
     const r = await run('reportIncident', { site: SITE.code, date: $('in_d').value, time: $('in_t').value, type: IN.type, place: place, subject: $('in_s').value.trim(),
       products: IN.products, parcels: parcels, suspects: IN.suspects, detail: $('in_det').value, steps: IN.steps, reporter: $('in_rep').value.trim(), lat: GPS.lat, lng: GPS.lng, files: files });
     ov('<div class="overlay-icon">✅</div><div class="overlay-title">ส่งรายงานเหตุแล้ว</div><div class="overlay-sub">เลขเคส</div><div class="overlay-big">' + esc(r.id) + '</div>' +
-      '<div class="overlay-sub">Sec Ops ได้รับเรื่องแล้ว' + (r.owner ? '<br>ผู้รับผิดชอบ: ' + esc(r.owner) : '') + '<br>จดเลขเคสไว้ใช้อ้างอิง</div><button class="overlay-btn" onclick="ovClose();home()">กลับหน้าแรก</button>');
+      '<div class="overlay-sub">ฝ่ายความปลอดภัยได้รับเรื่องแล้ว' + (r.owner ? '<br>ผู้รับผิดชอบ: ' + esc(r.owner) : '') + '<br>จดเลขเคสไว้ใช้อ้างอิง</div><button class="overlay-btn" onclick="ovClose();home()">กลับหน้าแรก</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
 }
 
 // ═══════════════ Routine (หน้าตา Routine Report เดิม) ═══════════════
 // v5.28a Patrol Log / ตรวจห้องน้ำ / ประตูหนีไฟ ย้ายไปปุ่ม Patrol ตรวจจุดเสี่ยง (สแกน QR ที่จุด) · Routine เหลือกุญแจ + อื่นๆ
-const RT_TYPES = [['patrol', '🚶', 'Patrol Log'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];   // v5.29c เอา Patrol Log กลับมา
+const RT_TYPES = [['patrol', '🚶', 'บันทึกเดินตรวจ'], ['key', '🔑', 'รับ-ส่งกุญแจ'], ['other', '📝', 'อื่นๆ']];   // v5.29c เอา Patrol Log กลับมา
 let RT_POINTS = [['รอบภายนอกอาคาร', 'รอบภายนอก'], ['ภายในอาคาร', 'ภายในอาคาร']];   // v5.29c ประตูหนีไฟ ตรวจที่ Patrol จุดเสี่ยง
 let RT_TOILETS = [['IB ชาย', '🚹'], ['IB หญิง', '🚺'], ['OB ชาย', '🚹'], ['OB หญิง', '🚺']];
 let RT = null;
@@ -772,7 +772,7 @@ function formRoutine() {
   theme('t-or');
   const now = new Date();
   RT = { type: '', points: [], toilets: {}, doorGroup: '', doors: {}, keyType: '', status: '', photos: [], ts: stamp(now) };
-  $('app').innerHTML = formHead('SR', 'Routine Report', 'เหตุการณ์ปกติ SPX Security') + '<div class="fmain">' + tsBox(RT.ts) +
+  $('app').innerHTML = formHead('📋', 'รายงานประจำ', 'เหตุการณ์ปกติ · รักษาความปลอดภัย SPX') + '<div class="fmain">' + tsBox(RT.ts) +
     '<div class="section"><div class="slabel">📋 ข้อมูลการรายงาน</div><div class="row2"><div class="field"><label for="rt_d">วันที่</label><input id="rt_d" type="date" value="' + ymd(now) + '"></div>' +
     '<div class="field"><label for="rt_t">เวลา (24 ชม.)</label><input id="rt_t" type="time" value="' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + '"></div></div></div>' +
     '<div class="section"><div class="slabel">📌 ประเภทรายงาน</div><div class="type-grid" id="rt_type">' + RT_TYPES.map(([k, e, l], i) => '<button type="button" class="type-btn tall' + (i === 4 ? ' span' : '') + '" data-v="' + k + '" onclick="rtType(this)"><span class="e">' + e + '</span>' + l + '</button>').join('') + '</div></div>' +
@@ -795,7 +795,7 @@ function rtType(btn) {
   if (RT.type === 'toilet') h = '<div class="section"><div class="slabel">🚻 ตรวจห้องน้ำ</div><div class="toilet-grid">' + RT_TOILETS.map(([t, e], i) => '<div class="toilet-card"><div class="tlb">' + e + ' ' + t + '</div><div class="toilet-tog" id="tl' + i + '"><button type="button" onclick="rtToilet(' + i + ',\'ok\')">✅ ไม่พบ</button><button type="button" onclick="rtToilet(' + i + ',\'bad\')">⚠️ พบ!</button></div></div>').join('') + '</div></div>';
   if (RT.type === 'firedoor') {
     const g = CFG.doors;
-    if (!g.length) h = '<div class="section"><div class="slabel">🚪 สถานะประตูหนีไฟ</div><div class="hint">พื้นที่นี้ยังไม่ได้ตั้งจำนวนประตูหนีไฟ · แจ้ง Sec Ops</div></div>';
+    if (!g.length) h = '<div class="section"><div class="slabel">🚪 สถานะประตูหนีไฟ</div><div class="hint">พื้นที่นี้ยังไม่ได้ตั้งจำนวนประตูหนีไฟ · แจ้งฝ่ายความปลอดภัย</div></div>';
     else { if (g.length === 1) RT.doorGroup = g[0].name; h = '<div class="section"><div class="slabel">🚪 สถานะประตูหนีไฟ</div>' + (g.length > 1 ? '<div class="type-grid" id="rt_wh">' + g.map(x => '<button type="button" class="type-btn" data-v="' + esc(x.name) + '" onclick="rtWh(this)">' + esc(x.name) + ' (' + x.count + ')</button>').join('') + '</div>' : '') + '<div id="rt_doors"></div></div>'; }
   }
   if (RT.type === 'key') h = '<div class="section"><div class="slabel">🔑 รับ-ส่งกุญแจคลัง</div><div class="key-grid"><button type="button" class="key-btn" id="k_in" onclick="rtKey(\'รับ\')">🔓<br><span style="font-size:12px">รับกุญแจ<br>(เปิดคลัง)</span></button><button type="button" class="key-btn" id="k_out" onclick="rtKey(\'ส่ง\')">🔒<br><span style="font-size:12px">ส่งกุญแจ<br>(ปิดคลัง)</span></button></div>' +
@@ -847,20 +847,22 @@ function applyOpts(o) {
   if (o.voiceUrg && o.voiceUrg.length) VO_URG = o.voiceUrg.slice();
 }
 let PF_STEPS = ['แจ้ง Sec Ops', 'ส่งคืนหัวหน้างาน'];
+// v5.29e ค่าจากระบบ (ตัวเลือกในตั้งค่ากลาง) ที่เป็นภาษาอังกฤษ → แสดงเป็นไทย (ค่าที่ส่ง / เก็บยังเหมือนเดิม)
+function thTxt(t) { return String(t || '').replace(/Sec Ops/g, 'ฝ่ายความปลอดภัย').replace(/^Patrol Log$/, 'บันทึกเดินตรวจ').replace(/Body Check/g, 'จุดตรวจค้น'); }
 let PF = null;
 function formParcel() {
   theme('t-or');
   const now = new Date();
   PF = { tr: [''], cond: '', steps: [], photos: [], ts: stamp(now) };
-  $('app').innerHTML = formHead('PF', 'Parcel Found Report', 'พัสดุตกค้างนอกพื้นที่ — SPX Security') + '<div class="fmain">' + tsBox(PF.ts) +
+  $('app').innerHTML = formHead('📦', 'แจ้งพบพัสดุ', 'พัสดุตกค้างนอกพื้นที่ · รักษาความปลอดภัย SPX') + '<div class="fmain">' + tsBox(PF.ts) +
     '<div class="section"><div class="slabel">📍 ข้อมูลการพบพัสดุ</div><div class="row2"><div class="field"><label for="pf_d">วันที่พบ</label><input id="pf_d" type="date" value="' + ymd(now) + '"></div>' +
     '<div class="field"><label for="pf_t">เวลาพบ (24 ชม.)</label><input id="pf_t" type="time" value="' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + '"></div></div>' +
     '<div class="field"><label for="pf_pl">สถานที่พบ</label><select id="pf_pl" onchange="$(\'pf_plx\').hidden=this.value!==\'อื่นๆ\'"><option value="">— เลือกสถานที่พบ —</option>' + CFG.places.map(p => '<option>' + esc(p) + '</option>').join('') + '</select><input id="pf_plx" placeholder="ระบุสถานที่" hidden></div></div>' +
-    '<div class="section"><div class="slabel">🏷️ เลข Tracking <span class="cnt" id="pf_n">0</span></div><div id="pf_list"></div><button type="button" class="add-btn" onclick="pfAddRow()">＋ เพิ่มเลข Tracking</button></div>' +
+    '<div class="section"><div class="slabel">🏷️ เลขพัสดุ <span class="cnt" id="pf_n">0</span></div><div id="pf_list"></div><button type="button" class="add-btn" onclick="pfAddRow()">＋ เพิ่มเลขพัสดุ</button></div>' +
     '<div class="section"><div class="slabel">📦 รายละเอียดพัสดุ</div><div class="field"><label for="pf_c">จำนวนพัสดุ (ชิ้น)</label><input id="pf_c" type="number" min="1" inputmode="numeric" placeholder="เท่ากับจำนวนเลข ถ้าไม่ใส่" style="font-size:18px;font-weight:700;text-align:center"></div>' +
     '<div class="field"><label>สภาพพัสดุ</label></div><div class="cond-grid" id="pf_cond">' + PF_COND.map(([c, e]) => '<button type="button" class="cond-btn" data-v="' + c + '" onclick="pfCond(this)">' + e + ' ' + c + '</button>').join('') + '</div>' +
     '<div class="field"><label for="pf_r">หมายเหตุ (ถ้ามี)</label><textarea id="pf_r" style="min-height:70px" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div></div>' +
-    '<div class="section"><div class="slabel">✅ ขั้นตอนดำเนินการ</div><div class="check-list">' + PF_STEPS.map(x => '<button type="button" class="check-item" data-v="' + x + '" onclick="togArr(PF.steps,this)"><span class="check-box">✓</span><span>' + x + '</span></button>').join('') + '</div></div>' +
+    '<div class="section"><div class="slabel">✅ ขั้นตอนดำเนินการ</div><div class="check-list">' + PF_STEPS.map(x => '<button type="button" class="check-item" data-v="' + x + '" onclick="togArr(PF.steps,this)"><span class="check-box">✓</span><span>' + esc(thTxt(x)) + '</span></button>').join('') + '</div></div>' +
     '<div class="section"><div class="slabel">📷 รูปถ่าย (สูงสุด 30)</div><div class="photos" id="pf_ph"></div></div>' +
     '<div class="section"><div class="slabel">👤 ผู้รายงาน</div><div class="field"><input id="pf_rep" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div></div>' +
     '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="sendParcel()">📦 ส่งรายงานพัสดุ</button>' + backHome() + '</div>';
@@ -890,7 +892,7 @@ async function sendParcel() {
   const d = { site: SITE.code, date: $('pf_d').value, time: $('pf_t').value, place: place, trackings: tr, count: $('pf_c').value, condition: PF.cond, steps: PF.steps, remark: $('pf_r').value, reporter: $('pf_rep').value.trim() };
   if (!d.date || !d.time) return showErr('⚠️ กรุณาใส่วันและเวลาที่พบ');
   if (!d.place) return showErr('⚠️ กรุณาเลือกสถานที่พบ');
-  if (!tr.length) return showErr('⚠️ ต้องมีเลข Tracking อย่างน้อย 1 รายการ');
+  if (!tr.length) return showErr('⚠️ ต้องมีเลขพัสดุอย่างน้อย 1 รายการ');
   if (!d.condition) return showErr('⚠️ กรุณาเลือกสภาพพัสดุ');
   if (!d.reporter) return showErr('⚠️ กรุณาระบุผู้รายงาน');
   showErr(''); busy('กำลังส่งรายงาน…'); store.set('name', d.reporter);
@@ -923,12 +925,12 @@ function loadZXing() {
   return zxLoading;
 }
 let SCAN_MODE = 'parcel';
-function scanPost() { SCAN_MODE = 'post'; openScan(null); $('scanMsg').textContent = 'ส่อง QR PATROL ที่ติดอยู่ที่จุดตรวจ'; }
+function scanPost() { SCAN_MODE = 'post'; openScan(null); $('scanMsg').textContent = 'ส่อง QR จุดตรวจที่ติดอยู่ที่จุด'; }
 function gotPostQR(raw) {
   const g = k => { const m = String(raw).match(new RegExp('[?&]' + k + '=([^&#]*)')); return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''; };
   const site = g('site'), post = g('post'), pt = g('pt');
   if (!pt && post) { $('scanMsg').textContent = 'QR จุด รปภ. แบบเดิม เลิกใช้แล้ว · สแกน QR ที่มีคำว่า PATROL'; return; }
-  if (!pt) { $('scanMsg').textContent = 'QR นี้ไม่ใช่ QR Patrol'; return; }
+  if (!pt) { $('scanMsg').textContent = 'QR นี้ไม่ใช่ QR จุดตรวจ'; return; }
   if (site && site !== SITE.code) { $('scanMsg').textContent = 'QR นี้เป็นของพื้นที่ ' + site + ' (ตอนนี้อยู่ ' + SITE.code + ')'; return; }
   closeScan(); ptPage(pt);
 }
@@ -1071,7 +1073,7 @@ let PT = null, SO_TOK = '', PT_TMR = null;
 const PT_LVC = { 'สูง': '#b42318', 'กลาง': '#b7791f', 'ต่ำ': '#1f7a45' };
 function ptPage(id) {
   theme('t-or');
-  const hd = formHead('QR', 'Patrol ตรวจจุดเสี่ยง', 'Patrol · SPX Security');
+  const hd = formHead('🛡', 'เดินตรวจจุดเสี่ยง', 'สแกน QR ที่จุดตรวจ · รักษาความปลอดภัย SPX');
   $('app').innerHTML = hd + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(id) + '…</div></div></div>';
   run('gPatrolInfo', SITE.code, id).then(p => {
     PT = { p: p, res: '', ok: p.checks.map(() => null), photos: [] };   // v5.29c ต้องกดทุกข้อ ✅ / ❌
@@ -1079,14 +1081,14 @@ function ptPage(id) {
       '<div class="section"><div class="slabel">📍 ' + esc(p.name) + ' <span class="cnt" style="background:' + (PT_LVC[p.level] || '#555') + ';color:#fff">เสี่ยง' + esc(p.level) + '</span></div>' +
       '<div class="hint">' + esc(p.id) + (p.zname ? ' · โซน ' + esc(p.zname) : '') + ' · ' + (p.hrs ? 'ตรวจทุก ' + p.hrs + ' ชม.' : 'ตรวจกะละครั้ง') + '</div>' +
       '<div class="hint">' + (p.last ? 'ตรวจล่าสุด ' + esc(p.last.at.slice(5)) + ' · ' + esc(p.last.name) + (p.last.res === 'ผิดปกติ' ? ' · <b style="color:#6d4fc2">ผิดปกติ</b>' : '') : 'ยังไม่เคยตรวจ') + (p.next ? ' · รอบถัดไป ' + esc(p.next) + ' น.' : '') + '</div>' +
-      (p.hours ? '<div class="hint">🕘 เวลา Patrol ของพื้นที่: ' + esc(p.hours) + (p.off ? ' · <b>ตอนนี้นอกเวลา Patrol</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') +
+      (p.hours ? '<div class="hint">🕘 เวลาเดินตรวจของพื้นที่: ' + esc(p.hours) + (p.off ? ' · <b>ตอนนี้นอกเวลาเดินตรวจ</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') +
       (p.shifts && p.shifts.length ? '<div class="hint">🕘 ตรวจเฉพาะกะ: ' + esc(p.shifts.join(', ')) + (p.notShift ? ' · <b>กะนี้ไม่ต้องตรวจจุดนี้</b> (บันทึกได้ ไม่นับรอบ)' : '') + '</div>' : '') + '</div>' +
       (p.checks.length ? '<div class="section"><div class="slabel">✅ สิ่งที่ต้องตรวจ * <span class="cnt">กดให้ครบทุกข้อ</span></div>' + p.checks.map((c, i) => '<div class="ptck" id="ptc' + i + '"><div class="ptck-t">' + (i + 1) + '. ' + esc(c) + '</div><div class="ptck-b"><button type="button" class="check-item" id="ptc' + i + 'y" onclick="ptMark(' + i + ',true)">✅ ปกติ</button><button type="button" class="check-item" id="ptc' + i + 'n" onclick="ptMark(' + i + ',false)">❌ ไม่ปกติ</button></div></div>').join('') + '</div>' : '') +
       '<div class="section"><div class="slabel">📷 ถ่ายรูปที่จุด * <span class="cnt">อย่างน้อย 1 รูป · ถ่ายจากกล้องเท่านั้น</span></div><div class="photos" id="pt_ph"></div><div class="hint">รูปจะมีวันเวลา · จุด · พื้นที่ ประทับในรูป</div></div>' +
       '<div class="section"><div class="slabel">📋 ผลการตรวจ *</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
         '<button type="button" class="check-item" id="pt_ok" onclick="ptRes(\'ปกติ\')" style="justify-content:center;font-weight:700">✅ ปกติ</button>' +
         '<button type="button" class="check-item" id="pt_bad" onclick="ptRes(\'ผิดปกติ\')" style="justify-content:center;font-weight:700">⚠️ พบสิ่งผิดปกติ</button></div>' +
-      '<div id="pt_badBox" style="display:none;margin-top:10px"><div class="hint" style="color:#b42318">ระบบจะแจ้ง Seatalk ถึง Sec Ops ทันที พร้อมรูป</div>' +
+      '<div id="pt_badBox" style="display:none;margin-top:10px"><div class="hint" style="color:#b42318">ระบบจะแจ้ง Seatalk ถึงฝ่ายความปลอดภัยทันที พร้อมรูป</div>' +
         '<div class="field"><textarea id="pt_note" rows="3" maxlength="1000" placeholder="พบอะไร ตรงไหน ทำอะไรไปแล้ว"></textarea></div></div></div>' +
       '<div class="section"><div class="slabel">👤 ผู้ตรวจ</div><div class="field"><input id="pt_n" value="' + esc(store.get('name')) + '" placeholder="ชื่อ-นามสกุล"></div></div>' +
       '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="sendPatrol()">บันทึกการตรวจ</button>' +
@@ -1110,7 +1112,7 @@ function ptStamp(dataUrl) {
     const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0);
     const p = PT.p, d = new Date(), fs = Math.max(18, Math.round(im.width / 34)), pad = Math.round(fs * 0.6);
     const L = [pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + (d.getFullYear() + 543) + '  ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()),
-      'PATROL · ' + SITE.code + ' · ' + p.id + ' ' + p.name, GPS.st === 'ok' && GPS.lat ? 'GPS ' + GPS.lat.toFixed(5) + ', ' + GPS.lng.toFixed(5) + (GPS.acc ? ' (±' + Math.round(GPS.acc) + ' ม.)' : '') : 'GPS -'];
+      'เดินตรวจ · ' + SITE.code + ' · ' + p.id + ' ' + p.name, GPS.st === 'ok' && GPS.lat ? 'GPS ' + GPS.lat.toFixed(5) + ', ' + GPS.lng.toFixed(5) + (GPS.acc ? ' (±' + Math.round(GPS.acc) + ' ม.)' : '') : 'GPS -'];
     const h = L.length * fs * 1.35 + pad * 2; x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, c.height - h, c.width, h);
     x.fillStyle = '#fff'; x.font = '600 ' + fs + 'px sans-serif'; x.textBaseline = 'top';
     L.forEach((t, i) => x.fillText(t, pad, c.height - h + pad + i * fs * 1.35, c.width - pad * 2));
@@ -1144,21 +1146,21 @@ async function sendPatrol() {
     const files = await uploadAll(PT.photos.slice(0, bad ? 6 : 3).map((x, i) => ({ name: 'patrol_' + (i + 1) + '.jpg', get: () => Promise.resolve(x.data) })), 'patrol');
     const r = await run('recordPatrol', { site: SITE.code, id: p.id, name: name, res: PT.res, checks: p.checks.map((t, i) => ({ t: t, ok: PT.ok[i] })), note: note, lat: GPS.lat, lng: GPS.lng, acc: GPS.acc, files: files });
     ov('<div class="overlay-icon">' + (bad ? '🚨' : '✅') + '</div><div class="overlay-title">' + (bad ? 'แจ้งสิ่งผิดปกติแล้ว' : 'ตรวจจุดแล้ว') + '</div><div class="overlay-big">' + esc(p.name) + '</div>' +
-      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' +  + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึง Sec Ops แล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุป Patrol รายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
+      '<div class="overlay-sub">' + esc(r.at) + ' น. · ' + esc(name) + ' · รูป ' + (r.photos || 0) + ' รูป' +  + (bad ? (r.alerted ? '<br>แจ้ง Seatalk ถึงฝ่ายความปลอดภัยแล้ว' : '<br><b style="color:#b42318">บันทึกแล้ว แต่ส่ง Seatalk ไม่สำเร็จ · โทรแจ้งหัวหน้า</b>') : '<br><small>รวมในสรุปเดินตรวจรายชั่วโมงลง Seatalk</small>') + (r.repeat ? '<br><small>บันทึกไปแล้วเมื่อสักครู่</small>' : '') + '</div>' +
       '<button class="overlay-btn" onclick="ovClose();scanPost()">📷 สแกนจุดถัดไป</button><button class="overlay-btn ghost" onclick="ovClose();home()">กลับหน้าแรก</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
 }
 function ptOldQR() {
   theme('t-or');
-  $('app').innerHTML = formHead('QR', 'Patrol ตรวจจุดเสี่ยง', 'Patrol · SPX Security') + '<div class="fmain"><div class="section"><div class="slabel">ℹ️ QR นี้เป็น QR จุด รปภ. แบบเดิม</div><div class="hint">เลิกใช้สแกนแล้ว · ให้สแกน QR ที่มีคำว่า <b>PATROL</b> ที่จุดตรวจแทน (แจ้ง Sec Ops ถ้ายังไม่มี)</div></div>' +
-    '<button type="button" class="add-btn" onclick="scanPost()">📷 สแกน QR Patrol</button>' + backHome() + '</div>';
+  $('app').innerHTML = formHead('🛡', 'เดินตรวจจุดเสี่ยง', 'สแกน QR ที่จุดตรวจ · รักษาความปลอดภัย SPX') + '<div class="fmain"><div class="section"><div class="slabel">ℹ️ QR นี้เป็น QR จุด รปภ. แบบเดิม</div><div class="hint">เลิกใช้สแกนแล้ว · ให้สแกน QR ที่มีคำว่า <b>PATROL</b> ที่จุดตรวจแทน (แจ้งฝ่ายความปลอดภัยถ้ายังไม่มี)</div></div>' +
+    '<button type="button" class="add-btn" onclick="scanPost()">📷 สแกน QR จุดตรวจ</button>' + backHome() + '</div>';
 }
 // ═══════════════ สแกนจุดตรวจ (เดิม · เลิกใช้ v5.28) ═══════════════
 function scanPage(post) {
   theme('t-or');
-  $('app').innerHTML = formHead('QR', 'สแกนจุดตรวจ', 'Checkpoint · SPX Security') + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(post) + '…</div></div></div>';
+  $('app').innerHTML = formHead('🛡', 'สแกนจุดตรวจ', 'จุดตรวจ · รักษาความปลอดภัย SPX') + '<div class="fmain"><div class="section"><div class="slabel">⏳ กำลังเปิดจุด ' + esc(post) + '…</div></div></div>';
   run('gScanInfo', SITE.code, post).then(p => {
-    $('app').innerHTML = formHead('QR', 'สแกนจุดตรวจ', 'Checkpoint · SPX Security') + '<div class="fmain">' + tsBox(stamp(new Date())) + '<div class="gpsb"></div>' +
+    $('app').innerHTML = formHead('🛡', 'สแกนจุดตรวจ', 'จุดตรวจ · รักษาความปลอดภัย SPX') + '<div class="fmain">' + tsBox(stamp(new Date())) + '<div class="gpsb"></div>' +
       '<div class="section"><div class="slabel">📍 ' + esc(p.post) + (p.risk ? ' <span class="cnt">ความเสี่ยง' + esc(p.risk) + '</span>' : '') + '</div>' +
       (p.duties.length ? '<div class="check-list">' + p.duties.map(d => '<div class="check-item" style="cursor:default"><span class="check-box" style="color:#ee4d2d;border-color:#ee4d2d">•</span><span>' + (d.when ? '<b>' + esc(d.when) + '</b> · ' : '') + esc(d.what) + '</span></div>').join('') + '</div>' : '<div class="hint">ยังไม่มีหน้าที่ของจุดนี้</div>') +
       (p.equipment ? '<div class="hint">🧰 อุปกรณ์: ' + esc(p.equipment) + '</div>' : '') + '</div>' +
@@ -1166,7 +1168,7 @@ function scanPage(post) {
       '<div class="err" id="err"></div><button type="button" class="submit-btn" id="go" onclick="sendScan(\'' + esc(p.post).replace(/'/g, "\\'") + '\')">✅ ยืนยันตรวจจุดนี้</button>' +
       '<button type="button" class="add-btn" style="margin-top:10px" onclick="scanPost()">📷 สแกนจุดถัดไป</button>' + backHome() + '</div>';
     gpsUI();
-  }).catch(e => { $('app').innerHTML = formHead('QR', 'สแกนจุดตรวจ', 'Checkpoint · SPX Security') + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div>' + backHome() + '</div>'; });
+  }).catch(e => { $('app').innerHTML = formHead('🛡', 'สแกนจุดตรวจ', 'จุดตรวจ · รักษาความปลอดภัย SPX') + '<div class="fmain"><div class="section"><div class="slabel">⚠️ ' + esc(errText(e)) + '</div></div>' + backHome() + '</div>'; });
 }
 function sendScan(post) {
   const name = $('sc_n').value.trim();
@@ -1185,18 +1187,18 @@ function formVoice() {
   theme('t-vo');
   VO = { cats: [], urg: VO_URG[0], photos: [], clips: [] };
   $('app').innerHTML = '<div class="vo-head"><div class="vo-ic">' + ico('i-voice') + '</div><div><div class="vt">แจ้งปัญหา รปภ.</div><div class="vs">ส่งถึงผู้รับเรื่องเท่านั้น · เป็นความลับ</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
-    '<div class="vo-main"><div class="vo-note">🔒 เรื่องที่แจ้ง<b>ส่งถึงผู้รับเรื่อง (Sec Ops) เท่านั้น</b> หัวหน้า รปภ. และเพื่อนในทีมมองไม่เห็น ชื่อของคุณใช้สำหรับติดต่อกลับเท่านั้น</div>' +
+    '<div class="vo-main"><div class="vo-note">🔒 เรื่องที่แจ้ง<b>ส่งถึงผู้รับเรื่อง (ฝ่ายความปลอดภัย) เท่านั้น</b> หัวหน้า รปภ. และเพื่อนในทีมมองไม่เห็น ชื่อของคุณใช้สำหรับติดต่อกลับเท่านั้น</div>' +
     '<div class="vo-card"><div class="vo-l">ผู้แจ้ง</div><div class="field"><label for="vo_n">ชื่อ-นามสกุล <i>*</i></label><input id="vo_n" value="' + esc(store.get('name')) + '" placeholder="เช่น สมชาย ใจดี"></div>' +
     '<div class="field"><label>สถานที่</label><input value="' + esc(SITE.name) + '" disabled></div>' +
     '<div class="field"><label for="vo_p">เบอร์ติดต่อกลับ <span class="opt">ไม่บังคับ</span></label><input id="vo_p" inputmode="tel" placeholder="08x-xxx-xxxx"></div>' +
     '<label class="vo-chk"><input type="checkbox" id="vo_c" checked> ให้ผู้รับเรื่องติดต่อกลับได้</label></div>' +
     '<div class="vo-card"><div class="vo-l">เรื่องที่อยากแจ้ง <i>*</i> <span class="opt">เลือกได้มากกว่า 1</span></div><div class="pchips">' + CFG.voiceCats.map(c => '<button type="button" class="pchip" data-v="' + esc(c) + '" onclick="togArr(VO.cats,this)">' + esc(c) + '</button>').join('') + '</div>' +
-    '<div class="field"><label for="vo_w">เกี่ยวข้องกับใคร / จุดไหน <span class="opt">ไม่บังคับ</span></label><input id="vo_w" placeholder="เช่น หัวหน้ากะดึก, จุด Body Check"></div>' +
+    '<div class="field"><label for="vo_w">เกี่ยวข้องกับใคร / จุดไหน <span class="opt">ไม่บังคับ</span></label><input id="vo_w" placeholder="เช่น หัวหน้ากะดึก, จุด จุดตรวจค้น"></div>' +
     '<div class="field"><label>ความเร่งด่วน</label></div><div class="vo-urg" id="vo_u">' + VO_URG.map(u => '<button type="button" class="' + (u === VO_URG[0] ? 'on' : '') + '" data-v="' + u + '" onclick="voUrg(this)">' + u + '</button>').join('') + '</div>' +
     '<div class="field"><label for="vo_d">เล่ารายละเอียด <i>*</i></label><textarea id="vo_d" placeholder="เกิดอะไรขึ้น เมื่อไหร่ ที่ไหน มีใครเห็นบ้าง"></textarea></div></div>' +
     '<div class="vo-card"><div class="vo-l">หลักฐาน <span class="opt">ไม่บังคับ · รูป 3 · คลิป 3 (ไม่เกิน 20 MB)</span></div><div class="photos" id="vo_ph"></div>' +
     '<div class="row2"><button type="button" class="add-btn" style="margin:0" onclick="addPhoto(\'vo\')">＋ รูป</button><button type="button" class="add-btn" style="margin:0" onclick="$(\'voClip\').click()">＋ คลิปวิดีโอ</button></div></div>' +
-    '<div class="err" id="err"></div><button type="button" class="vo-submit" id="go" onclick="sendVoice()">ส่งเรื่องถึง Sec Ops</button></div>';
+    '<div class="err" id="err"></div><button type="button" class="vo-submit" id="go" onclick="sendVoice()">ส่งเรื่องถึงฝ่ายความปลอดภัย</button></div>';
   voPh();
 }
 function voUrg(b) { [...$('vo_u').children].forEach(x => x.classList.toggle('on', x === b)); VO.urg = b.dataset.v; }
@@ -1219,14 +1221,14 @@ async function sendVoice() {
     d.files = await uploadAll(VO.photos.map(p => ({ name: 'voice.jpg', get: () => Promise.resolve(p.data) })).concat(VO.clips.map(c => ({ name: c.name, get: () => readURL(c.file) }))), 'voice');
     const r = await run('submitVoice', d);
     ov('<div class="overlay-icon">🔒</div><div class="overlay-title">ส่งเรื่องแล้ว</div><div class="overlay-sub">เลขเรื่อง</div><div class="overlay-big">' + esc(r.id) + '</div>' +
-      '<div class="overlay-sub">ผู้รับเรื่อง (Sec Ops) ได้รับแล้ว · เป็นความลับ' + (d.contact ? '<br>จะติดต่อกลับทางเบอร์ที่ให้ไว้' : '') + '</div><button class="overlay-btn" onclick="ovClose();home()">กลับหน้าแรก</button>');
+      '<div class="overlay-sub">ผู้รับเรื่อง (ฝ่ายความปลอดภัย) ได้รับแล้ว · เป็นความลับ' + (d.contact ? '<br>จะติดต่อกลับทางเบอร์ที่ให้ไว้' : '') + '</div><button class="overlay-btn" onclick="ovClose();home()">กลับหน้าแรก</button>');
   } catch (e) { showErr('⚠️ ' + errText(e)); }
 }
 
 // ═══════════════ ตรวจ BlackList (หน้าตาเดิม) ═══════════════
 function formBL() {
   theme('t-bl');
-  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">SEC</div><div><div class="bs">SPX SECURITY · ทุกสถานที่</div><div class="bt">ตรวจสอบบุคคล</div></div>' + (BL_ONLY ? '<div style="margin-left:auto;text-align:right;font-size:12px;opacity:.85">' + esc(SITE.name || SITE.code) + '</div>' : '<button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button>') + '</div>' +
+  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">🛡</div><div><div class="bs">รักษาความปลอดภัย SPX · ทุกสถานที่</div><div class="bt">ตรวจสอบบุคคล</div></div>' + (BL_ONLY ? '<div style="margin-left:auto;text-align:right;font-size:12px;opacity:.85">' + esc(SITE.name || SITE.code) + '</div>' : '<button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button>') + '</div>' +
     '<div class="bl-main"><div class="bl-card"><div class="bl-l">ตรวจก่อนให้เข้าพื้นที่</div><input id="bl_q" class="bl-in" placeholder="เลขบัตร / พาสปอร์ต / ชื่อ" autocomplete="off" onkeydown="if(event.key===\'Enter\')blGo()">' +
     '<div class="bl-hint">พิมพ์ได้ทั้งเลขบัตรประชาชน เลขพาสปอร์ต หรือชื่อ-นามสกุล</div><button type="button" class="bl-btn" id="bl_go" onclick="blGo()">ตรวจสอบ</button></div><div id="bl_res"></div></div>';
   setTimeout(() => $('bl_q') && $('bl_q').focus(), 50);
@@ -1237,7 +1239,7 @@ function blGo() {
   run('blCheck', SITE.code, q, store.get('name')).then(r => {
     b.disabled = false; b.textContent = 'ตรวจสอบ';
     $('bl_res').innerHTML = blResult(r);
-    if (r.result === 'no') toastG(r.notified ? 'แจ้ง Sec Ops ทาง Seatalk แล้ว' : 'แจ้ง Seatalk ไม่สำเร็จ โปรดโทรแจ้ง Sec Ops');
+    if (r.result === 'no') toastG(r.notified ? 'แจ้งฝ่ายความปลอดภัยทาง Seatalk แล้ว' : 'แจ้ง Seatalk ไม่สำเร็จ โปรดโทรแจ้งฝ่ายความปลอดภัย');
     $('bl_q').value = ''; $('bl_res').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }).catch(e => { b.disabled = false; b.textContent = 'ตรวจสอบ'; $('bl_res').innerHTML = '<div class="err" style="display:block">⚠️ ' + esc(errText(e)) + '</div>'; });
 }
@@ -1246,8 +1248,8 @@ function blWho(p) {
     '<br>' + esc(p.status) + (p.code === 'T' ? ' ถึง ' + esc(p.until) : '') + '</div></div></div>';
 }
 function blResult(r) {
-  const todo = '<div class="do"><b>สิ่งที่ต้องทำ</b>1. ปฏิเสธการเข้าอย่างสุภาพ ไม่ต้องแจ้งเหตุผลละเอียด<br>2. ระบบแจ้ง Sec Ops เวรแล้ว รอการติดต่อกลับ<br>3. หากไม่ยอมออกจากพื้นที่ แจ้งหัวหน้า รปภ. ทันที</div>';
-  if (r.result === 'ok' || (r.result === 'was' && !r.people.length)) return '<div class="res r-ok"><div class="h">✓ ไม่พบในทะเบียน BlackList<small>' + esc(r.label) + '</small></div><div class="b np"><div class="m">ดำเนินการตามขั้นตอนปกติของจุดตรวจ (แลกบัตร ลงชื่อ ตรวจสิ่งของ)' + (r.kind === 'nm' ? '<br><b>ตรวจด้วยชื่อเท่านั้น ถ้ามีบัตรให้ตรวจด้วยเลขบัตรอีกครั้ง</b>' : '') + '</div></div></div>';
+  const todo = '<div class="do"><b>สิ่งที่ต้องทำ</b>1. ปฏิเสธการเข้าอย่างสุภาพ ไม่ต้องแจ้งเหตุผลละเอียด<br>2. ระบบแจ้งฝ่ายความปลอดภัยเวรแล้ว รอการติดต่อกลับ<br>3. หากไม่ยอมออกจากพื้นที่ แจ้งหัวหน้า รปภ. ทันที</div>';
+  if (r.result === 'ok' || (r.result === 'was' && !r.people.length)) return '<div class="res r-ok"><div class="h">✓ ไม่พบในทะเบียนบัญชีดำ<small>' + esc(r.label) + '</small></div><div class="b np"><div class="m">ดำเนินการตามขั้นตอนปกติของจุดตรวจ (แลกบัตร ลงชื่อ ตรวจสิ่งของ)' + (r.kind === 'nm' ? '<br><b>ตรวจด้วยชื่อเท่านั้น ถ้ามีบัตรให้ตรวจด้วยเลขบัตรอีกครั้ง</b>' : '') + '</div></div></div>';
   if (r.result === 'was') return '<div class="res r-was"><div class="h">เคยอยู่ในทะเบียน — ปัจจุบันไม่ถูกระงับ</div>' + blWho(r.people[0]) + '<div class="do"><b>สิ่งที่ต้องทำ</b>อนุญาตตามขั้นตอนปกติ และเฝ้าระวังเป็นพิเศษ</div></div>';
   if (r.multi) return '<div class="res r-no"><div class="h">⚠ ชื่อตรงกับผู้ถูกระงับ ' + r.count + ' คน</div><div class="b np"><div class="m">เทียบรูปกับคนตรงหน้า แล้วขอบัตรเพื่อตรวจด้วยเลขบัตรอีกครั้ง</div></div>' + todo + '</div>' + r.people.map(p => '<div class="res r-no"><div class="h">⛔ ไม่อนุญาตให้เข้า</div>' + blWho(p) + '</div>').join('');
   return '<div class="res r-no"><div class="h">⛔ ไม่อนุญาตให้เข้า</div>' + blWho(r.people[0]) + todo + '</div>';
@@ -1258,9 +1260,9 @@ function toastG(t) { let el = $('gtoast'); if (!el) { el = document.createElemen
 let CR = { q: '', r: null, phone: '', report: false, why: '', photo: '' };
 function formCar() {
   theme('t-bl'); CR = { q: '', r: null, phone: '', report: false, why: '', photo: '' };
-  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">SEC</div><div><div class="bs">SECURITY OPERATIONS · ' + esc(SITE.code) + '</div><div class="bt">ตรวจรถ</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
-    '<div class="bl-main"><div class="bl-card"><div class="bl-l">ทะเบียน หรือ Code บนบัตรจอดรถ</div><input id="car_q" class="bl-in" placeholder="เช่น 1กข 1234" autocomplete="off" onkeydown="if(event.key===\'Enter\')carGo()">' +
-    '<div class="bl-hint">รถพนักงานที่ลงทะเบียน · รถบริษัท SPX Express · รถรับส่ง</div><button type="button" class="bl-btn" id="car_go" onclick="carGo()">ตรวจสอบ</button>' +
+  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">🛡</div><div><div class="bs">ฝ่ายความปลอดภัย · ' + esc(SITE.code) + '</div><div class="bt">ตรวจรถ</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
+    '<div class="bl-main"><div class="bl-card"><div class="bl-l">ทะเบียน หรือรหัสบนบัตรจอดรถ</div><input id="car_q" class="bl-in" placeholder="เช่น 1กข 1234" autocomplete="off" onkeydown="if(event.key===\'Enter\')carGo()">' +
+    '<div class="bl-hint">รถพนักงานที่ลงทะเบียน · รถบริษัท SPX · รถรับส่ง</div><button type="button" class="bl-btn" id="car_go" onclick="carGo()">ตรวจสอบ</button>' +
     '<button type="button" class="bl-btn" style="background:#fff;color:#1f2328;border:1.5px solid #d6d9de;margin-top:8px" onclick="carScan()">📷 สแกน QR บนบัตรจอดรถ</button></div><div id="car_res"></div></div>';
   setTimeout(() => $('car_q') && $('car_q').focus(), 50);
 }
@@ -1295,13 +1297,13 @@ function carDraw() {
       '<div class="b np"><div class="m">' + esc([r.brand, r.color, r.company, r.dept].filter(Boolean).join(' · ')) + (r.driver ? '<br>คนขับ: ' + esc(r.driver) + ' · โทร ' + phone : '') + (r.note ? '<br>' + esc(r.note) : '') + '</div></div></div>';
   } else {
     const ok = r.ok, wait = r.pending, reg = r.st === 'ลงทะเบียนแล้ว';
-    const head = ok ? '✓ จอดได้' : wait ? (r.ownSt === 'รอตรวจ' ? 'รอ Sec Ops ตรวจ' : 'รอ ' + r.owner + ' ยืนยัน') + ' · ยังไม่มีสิทธิ์ที่นี่' : reg && !r.here ? 'ลงทะเบียนไว้ที่ ' + r.sites.join(', ') : reg && r.ownSt === 'ไม่ผ่าน' ? '⛔ ไม่ผ่าน ' + r.owner : '⛔ ' + r.st;
+    const head = ok ? '✓ จอดได้' : wait ? (r.ownSt === 'รอตรวจ' ? 'รอฝ่ายความปลอดภัยตรวจ' : 'รอ ' + r.owner + ' ยืนยัน') + ' · ยังไม่มีสิทธิ์ที่นี่' : reg && !r.here ? 'ลงทะเบียนไว้ที่ ' + r.sites.join(', ') : reg && r.ownSt === 'ไม่ผ่าน' ? '⛔ ไม่ผ่าน ' + r.owner : '⛔ ' + r.st;
     h = '<div class="res ' + (ok ? 'r-ok' : wait || (reg && !r.here) ? 'r-was' : 'r-no') + '"><div class="h">' + esc(head) + '<small>' + esc(r.plate) + ' ' + esc(r.prov) + ' · ' + esc(r.code) + '</small></div>' +
       '<div class="b np"><div class="m"><b>' + esc(r.brand) + ' · สี' + esc(r.color) + '</b> · ' + esc(r.type) + '<br>' + esc(r.name) + ' · ' + esc(r.dept) +
       (ok && r.owner ? '<br>🎫 ' + esc(r.owner) + ' member' + (r.member ? ' ' + esc(r.member) : '') + ' · ผ่านช่อง member ได้ ไม่ต้องแลกบัตร' : '') + (r.why ? '<br>เหตุผล: ' + esc(r.why) : '') +
       '<br>โทร: ' + phone + (reg ? '<br><small style="color:#7a8190">แจ้งจอดผิดแล้ว ' + r.strikes + '/3 ครั้ง</small>' : '') + '</div></div>' +
       (r.photo ? '<div id="car_ph" style="padding:0 14px 12px"><button type="button" class="car-sm" onclick="carPhoto()">ดูรูปรถ</button></div>' : '') +
-      (!ok ? '<div class="do"><b>สิ่งที่ต้องทำ</b>' + (wait ? 'ยังไม่มีสิทธิ์จอดในลานพนักงานของพื้นที่นี้ ให้จอดลานผู้มาติดต่อจนกว่าจะผ่าน' : reg && !r.here ? 'ไม่ได้ลงทะเบียนพื้นที่นี้ ให้จอดลานผู้มาติดต่อ · แนะนำให้เพิ่มพื้นที่ในฟอร์มลงทะเบียน' : 'ไม่อนุญาตให้จอดในลานพนักงาน · แจ้ง Sec Ops หากเจ้าของรถยืนยันว่ามีสิทธิ์') + '</div>' : '') + '</div>';
+      (!ok ? '<div class="do"><b>สิ่งที่ต้องทำ</b>' + (wait ? 'ยังไม่มีสิทธิ์จอดในลานพนักงานของพื้นที่นี้ ให้จอดลานผู้มาติดต่อจนกว่าจะผ่าน' : reg && !r.here ? 'ไม่ได้ลงทะเบียนพื้นที่นี้ ให้จอดลานผู้มาติดต่อ · แนะนำให้เพิ่มพื้นที่ในฟอร์มลงทะเบียน' : 'ไม่อนุญาตให้จอดในลานพนักงาน · แจ้งฝ่ายความปลอดภัยหากเจ้าของรถยืนยันว่ามีสิทธิ์') + '</div>' : '') + '</div>';
   }
   h += CR.report ? carReportForm() : '<button type="button" class="bl-btn" style="background:#fff;color:#c53030;border:1.5px solid #f0b4b4;margin-top:10px" onclick="CR.report=true;CR.why=\'' + (r.kind === 'none' ? 'ไม่ได้ลงทะเบียน' : SITE.carWhy[0]) + '\';carDraw()">แจ้งจอดผิด / ขวางทาง</button>';
   $('car_res').innerHTML = h;
@@ -1324,13 +1326,13 @@ function carReport() {
   const b = $('car_rep'); b.disabled = true; b.textContent = 'กำลังส่ง…';
   run('gCarReport', SITE.code, { q: CR.q, why: CR.why, note: $('car_note').value, reporter: who, photo: CR.photo }).then(r => {
     CR.report = false; CR.photo = '';
-    if (r.registered) { CR.r.strikes = r.n; toastG('บันทึกแล้ว · ครั้งที่ ' + r.n + '/' + r.max + (r.n >= r.max ? ' · แจ้ง Sec Ops เสนอระงับ' : ' · ส่ง E-mail เตือนเจ้าของรถแล้ว')); }
-    else toastG('แจ้ง Sec Ops แล้ว');
+    if (r.registered) { CR.r.strikes = r.n; toastG('บันทึกแล้ว · ครั้งที่ ' + r.n + '/' + r.max + (r.n >= r.max ? ' · แจ้งฝ่ายความปลอดภัยเสนอระงับ' : ' · ส่ง E-mail เตือนเจ้าของรถแล้ว')); }
+    else toastG('แจ้งฝ่ายความปลอดภัยแล้ว');
     carDraw();
   }).catch(e => { b.disabled = false; b.textContent = 'ส่งแจ้ง'; toastG(errText(e)); });
 }
 
-// ═══════════════ ตรวจโทรศัพท์ (IMEI) ที่ Body Check ═══════════════
+// ═══════════════ ตรวจโทรศัพท์ (IMEI) ที่ จุดตรวจค้น ═══════════════
 let PHN = { pt: '', dir: 'เข้า', q: '', how: 'พิมพ์', r: null, recent: [] };
 function phLuhn(s) { if (!/^\d{15}$/.test(s)) return false; let sum = 0; for (let i = 0; i < 15; i++) { let d = +s[14 - i]; if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; } sum += d; } return sum % 10 === 0; }
 function formPhone() {
@@ -1339,8 +1341,8 @@ function formPhone() {
   if (pts.indexOf(PHN.pt) === -1) PHN.pt = store.get('phPt_' + SITE.code) || pts[0];
   if (pts.indexOf(PHN.pt) === -1) PHN.pt = pts[0];
   PHN.r = null; PHN.q = '';
-  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">SEC</div><div><div class="bs">SECURITY OPERATIONS · ' + esc(SITE.code) + '</div><div class="bt">ตรวจโทรศัพท์</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
-    '<div class="bl-main"><div class="bl-card"><div class="bl-l">จุดตรวจ</div><div class="ph-seg" id="ph_pts">' + pts.map(p => '<button type="button" data-v="' + esc(p) + '">' + esc(p) + '</button>').join('') + '</div>' +
+  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">🛡</div><div><div class="bs">ฝ่ายความปลอดภัย · ' + esc(SITE.code) + '</div><div class="bt">ตรวจโทรศัพท์</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
+    '<div class="bl-main"><div class="bl-card"><div class="bl-l">จุดตรวจ</div><div class="ph-seg" id="ph_pts">' + pts.map(p => '<button type="button" data-v="' + esc(p) + '">' + esc(thTxt(p)) + '</button>').join('') + '</div>' +
     '<div class="bl-l" style="margin-top:4px">ทิศทาง</div><div class="ph-seg" id="ph_dir"><button type="button" data-v="เข้า">เข้า</button><button type="button" data-v="ออก">ออก</button></div></div>' +
     '<div class="bl-card"><div class="bl-l">เลข IMEI · 4–6 ตัวท้าย หรือครบ 15 หลัก</div><div class="bl-hint" style="margin:0">ให้พนักงานกด <b>*#06#</b> แล้วแสดงหน้าจอ</div>' +
     '<input id="ph_q" class="bl-in" inputmode="numeric" maxlength="15" placeholder="เช่น 3714" autocomplete="off" onkeydown="if(event.key===\'Enter\')phGo()">' +
@@ -1404,7 +1406,7 @@ function phDraw() {
 function phSave(id) {
   const by = store.get('name') || ''; if (!by) { const n = (prompt('ชื่อผู้ตรวจ') || '').trim(); if (!n) return; store.set('name', n); return phSave(id); }
   run('gPhoneSave', SITE.code, { id: id, q: PHN.q, dir: PHN.dir, pt: PHN.pt, how: PHN.how, by: store.get('name') }).then(r => {
-    toastG(r.res === 'ผ่าน' ? 'บันทึก' + PHN.dir + 'แล้ว' : 'บันทึกแล้ว · แจ้ง Sec Ops'); PHN.r = null; $('ph_res').innerHTML = ''; $('ph_q').value = ''; phRecent(r.recent); $('ph_q').focus();
+    toastG(r.res === 'ผ่าน' ? 'บันทึก' + PHN.dir + 'แล้ว' : 'บันทึกแล้ว · แจ้งฝ่ายความปลอดภัย'); PHN.r = null; $('ph_res').innerHTML = ''; $('ph_q').value = ''; phRecent(r.recent); $('ph_q').focus();
   }).catch(e => toastG(errText(e)));
 }
 
@@ -1415,8 +1417,8 @@ function formGate() {
   const pts = SITE.gatePts || ['ป้อมหลัก'];
   GPG.pt = pts.indexOf(store.get('gpPt_' + SITE.code)) > -1 ? store.get('gpPt_' + SITE.code) : pts[0];
   GPG.v = null;
-  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">SEC</div><div><div class="bs">SECURITY OPERATIONS · ' + esc(SITE.code) + '</div><div class="bt">ใบนำเข้า-นำออก</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
-    '<div class="bl-main">' + (pts.length > 1 ? '<div class="bl-card"><div class="bl-l">จุดตรวจ</div><div class="ph-seg" id="gp_pts">' + pts.map(p => '<button type="button" data-v="' + esc(p) + '">' + esc(p) + '</button>').join('') + '</div></div>' : '') +
+  $('app').innerHTML = '<div class="bl-head"><div class="bl-logo">🛡</div><div><div class="bs">ฝ่ายความปลอดภัย · ' + esc(SITE.code) + '</div><div class="bt">ใบนำเข้า-นำออก</div></div><button type="button" class="pill-back" style="margin-left:auto" onclick="home()">← หน้าแรก</button></div>' +
+    '<div class="bl-main">' + (pts.length > 1 ? '<div class="bl-card"><div class="bl-l">จุดตรวจ</div><div class="ph-seg" id="gp_pts">' + pts.map(p => '<button type="button" data-v="' + esc(p) + '">' + esc(thTxt(p)) + '</button>').join('') + '</div></div>' : '') +
     '<div class="bl-card"><div class="bl-l">เลขใบ หรือสแกน QR ที่ผู้นำของแสดง</div><input id="gp_q" class="bl-in" placeholder="GP-… หรือเลขท้าย 4 หลัก" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key===\'Enter\')gpGo()">' +
     '<button type="button" class="bl-btn" id="gp_go" onclick="gpGo()">ตรวจสอบ</button><button type="button" class="bl-btn" style="background:#fff;color:#1f2328;border:1.5px solid #d6d9de;margin-top:8px" onclick="gpScan()">📷 สแกน QR ใบผ่าน</button></div><div id="gp_res"></div></div>' +
     '<input type="file" id="gpIn" accept="image/' + '*" capture="environment" style="display:none">';
@@ -1439,8 +1441,8 @@ function gpGo(how) {
 }
 function gpDraw() {
   const v = GPG.v; if (!v) { $('gp_res').innerHTML = ''; return; }
-  if (!v.found) { $('gp_res').innerHTML = '<div class="res r-no"><div class="h">⛔ ไม่พบใบนี้<small>' + esc(v.id) + '</small></div><div class="do"><b>สิ่งที่ต้องทำ</b>ไม่ให้นำของผ่าน · ตรวจเลขใบอีกครั้ง หรือแจ้ง Sec Ops</div></div>'; return; }
-  if (!v.ok) { $('gp_res').innerHTML = '<div class="res r-no"><div class="h">⛔ ใช้ไม่ได้<small>' + esc(v.id) + '</small></div><div class="b np"><div class="m">' + esc(v.why) + '<br>' + esc(v.carrier) + ' · ' + esc(v.kind) + '</div></div><div class="do"><b>สิ่งที่ต้องทำ</b>ไม่ให้นำของผ่าน · ให้ผู้ขอติดต่อ Sec Ops</div></div>'; return; }
+  if (!v.found) { $('gp_res').innerHTML = '<div class="res r-no"><div class="h">⛔ ไม่พบใบนี้<small>' + esc(v.id) + '</small></div><div class="do"><b>สิ่งที่ต้องทำ</b>ไม่ให้นำของผ่าน · ตรวจเลขใบอีกครั้ง หรือแจ้งฝ่ายความปลอดภัย</div></div>'; return; }
+  if (!v.ok) { $('gp_res').innerHTML = '<div class="res r-no"><div class="h">⛔ ใช้ไม่ได้<small>' + esc(v.id) + '</small></div><div class="b np"><div class="m">' + esc(v.why) + '<br>' + esc(v.carrier) + ' · ' + esc(v.kind) + '</div></div><div class="do"><b>สิ่งที่ต้องทำ</b>ไม่ให้นำของผ่าน · ให้ผู้ขอติดต่อฝ่ายความปลอดภัย</div></div>'; return; }
   const n = GPG.chk.filter(Boolean).length, all = n === v.items.length, title = v.dir === 'นำกลับ' ? '↩ ตรวจนำกลับ' : v.dir === 'นำออก' ? '↗ ตรวจนำออก (รอบสอง)' : '✓ ใบใช้ได้ · ' + v.dir;
   let h = '<div class="res ' + (v.late ? 'r-was' : 'r-ok') + '"><div class="h">' + title + '<small>' + esc(v.id) + '<br>' + (v.late ? 'เกินกำหนด ' + esc(v.due) : esc(v.date)) + '</small></div><div class="b np"><div class="nm">' + esc(v.carrier) + (v.co ? ' · ' + esc(v.co) : '') + (v.plate ? ' · รถ ' + esc(v.plate) : '') + '</div>' +
     '<div class="m">' + esc(v.kind) + ' · ' + esc(v.cat) + ' · ผู้ขอ ' + esc(v.by) + (v.dept ? ' (' + esc(v.dept) + ')' : '') + ' · อนุมัติ ' + esc(v.head) + (v.due && v.dir !== 'นำกลับ' && v.dir !== 'นำออก' ? '<br>' + esc(v.dueLabel || 'ต้องนำกลับภายใน') + ' ' + esc(v.due) : '') + '</div>' +
@@ -1449,7 +1451,7 @@ function gpDraw() {
     (GPG.photos.length ? '<div class="gp-thumbs">' + GPG.photos.map((u, i) => '<img alt="" src="' + u + '" onclick="GPG.photos.splice(' + i + ',1);gpDraw()">').join('') + '</div>' : '') +
     '<input id="gp_note" class="bl-in" style="font-size:15px" placeholder="หมายเหตุ (ถ้ามี)">' +
     '<button type="button" class="bl-btn" ' + (all && GPG.photos.length ? '' : 'disabled style="opacity:.5"') + ' onclick="gpSave(false)">บันทึก' + (v.dir === 'นำกลับ' ? 'นำกลับ' : v.dir) + ' · ครบ ' + n + '/' + v.items.length + '</button>' +
-    (!all ? '<button type="button" class="bl-btn" style="background:#fff;color:#b42318;border:1.5px solid #f0b4b4" ' + (GPG.photos.length ? '' : 'disabled') + ' onclick="gpSave(true)">ของไม่ตรง / ไม่ครบ → ไม่ให้ผ่าน แจ้ง Sec Ops</button>' : '') + '</div></div>';
+    (!all ? '<button type="button" class="bl-btn" style="background:#fff;color:#b42318;border:1.5px solid #f0b4b4" ' + (GPG.photos.length ? '' : 'disabled') + ' onclick="gpSave(true)">ของไม่ตรง / ไม่ครบ → ไม่ให้ผ่าน แจ้งฝ่ายความปลอดภัย</button>' : '') + '</div></div>';
   $('gp_res').innerHTML = h;
 }
 function gpSave(bad) {
@@ -1457,7 +1459,7 @@ function gpSave(bad) {
   const v = GPG.v, note = $('gp_note') ? $('gp_note').value : '';
   busy('กำลังบันทึก…');
   run('gGpSave', SITE.code, { id: v.id, checked: GPG.chk, note: note, photos: GPG.photos, by: store.get('name'), pt: GPG.pt, how: GPG.how, bad: !!bad }).then(r => {
-    ovClose(); toastG(r.res === 'ผ่าน' ? 'บันทึก' + (r.dir === 'นำกลับ' ? 'นำกลับ' : r.dir) + 'แล้ว' : 'บันทึกแล้ว · แจ้ง Sec Ops (ไม่ให้ผ่าน)'); GPG.v = null; $('gp_q').value = ''; gpDraw();
+    ovClose(); toastG(r.res === 'ผ่าน' ? 'บันทึก' + (r.dir === 'นำกลับ' ? 'นำกลับ' : r.dir) + 'แล้ว' : 'บันทึกแล้ว · แจ้งฝ่ายความปลอดภัย (ไม่ให้ผ่าน)'); GPG.v = null; $('gp_q').value = ''; gpDraw();
   }).catch(e => { ovClose(); toastG(errText(e)); });
 }
 
